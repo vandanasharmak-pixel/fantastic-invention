@@ -102,6 +102,107 @@ await run('/', 'Full flow · Episode Two · hold → replay', async (page) => {
   await page.screenshot({ path: 'dev/shot-episode-two.png', fullPage: true });
 });
 
+/* ---- 1b. the whole arc, Prologue through the Grand Debrief ---- */
+await run('/', 'Full arc · all five episodes → debrief', async (page) => {
+  await toEpisodeTwo(page);
+
+  // Episode Two: flub, hold, retake — so the debrief has a pair to narrate.
+  await say(page, "We're confident we'll hit the Atlas date.");
+  await page.getByRole('button', { name: /Call Hold/ }).click();
+  await page.waitForSelector('.rr-void-stamp', { timeout: 8000 });
+  await say(page, "You're right that we've gone quiet on you, and that's on us.");
+  await say(page, 'What would actually give you confidence here?');
+  await page.getByRole('button', { name: /Move on/ }).click();
+
+  // Episode Three: the envelopes.
+  await page.waitForSelector('.rr-envelopes');
+  const sealed = await page.locator('.rr-envelope').count();
+  check('Episode Three deals the strand-A envelopes', sealed === 3, `${sealed} sealed`);
+  while (await page.locator('.rr-envelope').count()) {
+    await page.locator('.rr-envelope').first().click();
+  }
+  const titles = await page.locator('.rr-card h4').allTextContents();
+  check('cards render their guide text',
+    titles.includes('The Real Reason') && titles.includes('The Email That Died'),
+    titles.join(' / '));
+  check('the unseen strands are acknowledged',
+    /7 further cards/.test(await page.textContent('.rr-unseen')));
+
+  await page.fill('#rr-wrong', 'I treated the delay as our integration problem.');
+  await page.getByRole('button', { name: /Share it/ }).click();
+  await page.getByRole('button', { name: 'Decide' }).click();
+  await page.waitForSelector('.rr-coach', { timeout: 8000 });
+  await page.getByRole('button', { name: /call from the top/ }).click();
+
+  // Episode Four: pressure cards, then the live escalation to Priya.
+  await page.waitForSelector('.rr-envelopes');
+  const ep4 = await page.locator('.rr-envelope').count();
+  check('Episode Four deals card 11 plus two pressure cards', ep4 === 3, `${ep4} sealed`);
+  while (await page.locator('.rr-envelope').count()) {
+    await page.locator('.rr-envelope').first().click();
+  }
+  await page.getByRole('button', { name: /Escalate/ }).click();
+  await page.getByRole('button', { name: 'Commit to it' }).click();
+  await page.waitForSelector('#rr-reply');
+  check('escalating opens a live conversation with Priya',
+    (await page.textContent('.rr-panel')).includes('Pressure & Escalation'));
+  await say(page, "Your team hasn't delivered the environments.");
+  // Assert the direction, not a zone: a fall can land inside the same band.
+  const blamed = await page.evaluate(() => {
+    const first = document.querySelector('.rr-movelog li');
+    return { fell: !!first?.querySelector('.rr-down'), reason: first?.textContent ?? '' };
+  });
+  check('blaming the sponsor costs trust', blamed.fell && /blame/i.test(blamed.reason),
+    blamed.reason.replace(/\s+/g, ' ').slice(0, 60));
+  await say(page, "That came out wrong — we've both missed this, and here's how we protect the date together.");
+  await page.getByRole('button', { name: /Move on/ }).click();
+
+  // Episode Five: the plan, then the recovery conversation.
+  await page.waitForSelector('#rr-nn');
+  await page.fill('#rr-open', "I want to start by being straight with you.");
+  await page.fill('#rr-own', 'That we went quiet, and that we let the environment risk sit.');
+  await page.fill('#rr-nn', 'I will not promise a date I cannot evidence.');
+  await page.getByRole('button', { name: /Sit down with him/ }).click();
+  await page.waitForSelector('#rr-reply');
+  check('the non-negotiable is held in view during the recovery',
+    (await page.textContent('.rr-nonneg')).includes('cannot evidence'));
+  await say(page, "You're right that we've gone quiet, and that's on us.");
+  await say(page, 'What would rebuild your confidence from here?');
+  await say(page, "I don't know the date yet, and I won't give you one I can't back.");
+  await page.getByRole('button', { name: /Move on/ }).click();
+
+  // The Grand Debrief.
+  await page.waitForSelector('.rr-debrief', { timeout: 12000 });
+  check('the debrief renders', (await page.textContent('.rr-debrief')).length > 20);
+  check('the debrief keeps both halves of the replay',
+    (await page.locator('.rr-retake-pair').count()) === 1);
+  const retake = await page.textContent('.rr-retakes');
+  check('it narrates the mistake and the correction',
+    /reassured without evidence/.test(retake) && /owned the silence/.test(retake));
+
+  // Deliverable Nine: "four or five deliberate, narrated moves across the
+  // whole Lab land far harder than twenty small ones."
+  const moves = await page.evaluate(() =>
+    [...document.querySelectorAll('.rr-movelog li')].map((li) => li.textContent.trim()));
+  check('the meter stays scarce — no zero-delta noise in the log',
+    !moves.some((m) => /exchange$/.test(m)), moves.join(' | ').slice(0, 70));
+  // Flush the debounced writer before reading the save back.
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await page.waitForTimeout(120);
+  const total = await page.evaluate(() => {
+    const raw = localStorage.getItem('relationship-room');
+    return raw ? JSON.parse(raw).trustEvents.filter((e) => !e.superseded).length : -1;
+  });
+  check('the whole session moved the needle a handful of times, not twenty',
+    total >= 3 && total <= 8, `${total} moves`);
+
+  await page.fill('#rr-commit', 'When a client goes quiet, I will ask before I explain.');
+  await page.locator('#rr-commit').blur();
+  await page.waitForSelector('.rr-closing');
+  check('the closing image lands once a commitment is written', true);
+  await page.screenshot({ path: 'dev/shot-debrief.png', fullPage: true });
+});
+
 /* ---- 2. a failing API must never surface as an error ---- */
 await run('/?fail=1', 'API down · in-fiction fallback', async (page) => {
   await toEpisodeTwo(page);

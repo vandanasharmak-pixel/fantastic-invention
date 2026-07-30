@@ -16,6 +16,7 @@ import { parseJSONish, normaliseClientReply, extractFirstObject } from '../src/c
 import { validateSave, emptySave, hasResumableProgress, createPersistence, SCHEMA_VERSION } from '../src/core/storage.js';
 import { CARDS, cardsForEpisode, wildcards, soloEpisodeThreeDraw, cardById } from '../src/content/cards.js';
 import { getSessionContext } from '../src/core/sessionContext.js';
+import { repairClientReply } from '../src/core/consistency.js';
 
 // ---------------------------------------------------------------- trust ----
 
@@ -338,4 +339,54 @@ test('solo draw preserves the unequal-information effect', () => {
   const draw = soloEpisodeThreeDraw('A');
   assert.deepEqual(draw.held.map((c) => c.id), [1, 2, 3]);
   assert.deepEqual(draw.unseen.map((c) => c.id), [4, 5, 6, 7, 8, 9, 10]);
+});
+
+// ------------------------------------------------ persona consistency ----
+
+test('a reassurance scored positive is never rewarded', () => {
+  const r = repairClientReply(
+    "We're tracking well — I'm confident we'll hit the Atlas date.",
+    { speech: '…', trust_delta: 7, pivot: 'gave a clear update' },
+  );
+  assert.equal(r.trust_delta, 0);
+  assert.equal(r.repaired, 'reassurance-scored-positive');
+  assert.equal(r.pivot, 'gave a clear update', 'the persona keeps its own wording when it gave one');
+});
+
+test('blame scored positive is never rewarded', () => {
+  const r = repairClientReply('Honestly, your team hasn\'t delivered the environments.',
+    { speech: '…', trust_delta: 4, pivot: '' });
+  assert.equal(r.trust_delta, 0);
+  assert.equal(r.pivot, 'reached for blame');
+});
+
+test('the guard withholds reward but never invents a penalty', () => {
+  // "reassures WITHOUT evidence" is the rule — a regex cannot see evidence,
+  // so the repair zeroes rather than going negative on its own authority.
+  const r = repairClientReply("We're on track.", { speech: '…', trust_delta: 9, pivot: '' });
+  assert.equal(r.trust_delta, 0, 'zeroed, not negated');
+});
+
+test('an evidence-backed update is left for the persona to judge', () => {
+  const r = repairClientReply(
+    "We're on track, and here's the burndown so you can check it yourself.",
+    { speech: '…', trust_delta: 5, pivot: 'showed his working' },
+  );
+  assert.equal(r.trust_delta, 5);
+  assert.equal(r.repaired, null);
+});
+
+test('the guard never touches a negative or zero score', () => {
+  for (const d of [-14, -3, 0]) {
+    const r = repairClientReply("We're confident.", { speech: '…', trust_delta: d, pivot: '' });
+    assert.equal(r.trust_delta, d);
+    assert.equal(r.repaired, null);
+  }
+});
+
+test('ordinary honest moves pass through untouched', () => {
+  const r = repairClientReply("You're right that we've gone quiet, and that's on us.",
+    { speech: '…', trust_delta: 6, pivot: 'owned the silence' });
+  assert.equal(r.trust_delta, 6);
+  assert.equal(r.repaired, null);
 });

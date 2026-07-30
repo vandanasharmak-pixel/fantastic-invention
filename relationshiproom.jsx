@@ -76,7 +76,10 @@ function TrustMeter({ trust, events, compact }) {
         <>
           <h3 className="rr-meter-head rr-meter-sub">SESSION TRACE</h3>
           <div className="rr-strip">
-            <svg viewBox="0 0 288 78" width="100%" height="78" aria-hidden="true">
+            {/* preserveAspectRatio="none" — the default letterboxes the
+                288-wide viewBox into the middle of a wider rail. */}
+            <svg viewBox="0 0 288 78" width="100%" height="78"
+              preserveAspectRatio="none" aria-hidden="true">
               <polyline points={trace} fill="none" stroke="#3A4144" strokeWidth="1.6" />
             </svg>
             <span className="rr-strip-tag">PROLOGUE → NOW</span>
@@ -182,7 +185,7 @@ function ClientChat({ persona, episode, state, dispatch, minTurns = 2, onDone })
       ? `Conversation so far:\n${history}\n\nThe trainee is REPLAYING the same beat. Ignore their previous attempt entirely and react only to this new one as if it is what they said the first time:\nTrainee: ${text}`
       : `Conversation so far:\n${history}\n\nTrainee: ${text}`;
 
-    const reply = await askClient(persona, systemFor(), prompt);
+    const reply = await askClient(persona, systemFor(), prompt, { traineeText: text });
 
     const eventId = dispatch({
       type: "trust",
@@ -811,6 +814,16 @@ export default function App() {
         case "trust": {
           let next = { events: s.trustEvents, trust: s.trust };
           if (action.replayOf) next = supersedeTrustEvent(next, action.replayOf);
+
+          // "Do not move the Meter for every small thing — you will exhaust
+          // its meaning." Most exchanges score 0 and are simply not events.
+          // A replay is always recorded even at 0, so the debrief keeps the
+          // "you tried that once, then better" pair.
+          if (action.delta === 0 && !action.replayOf) {
+            return next.events === s.trustEvents ? s
+              : { ...s, trustEvents: next.events, trust: next.trust };
+          }
+
           next = applyTrustEvent(next, {
             id: createdId,
             episode: action.episode, source: action.source,
@@ -956,11 +969,11 @@ main:focus{outline:none}
 
 .rr-header{display:flex;align-items:center;gap:16px;height:46px;padding:0 20px;
   background:#0C1116;border-bottom:1px solid var(--edge);position:sticky;top:0;z-index:10}
-.rr-brand{font:400 9.5px/1 'Courier Prime',monospace;letter-spacing:.18em;color:var(--mute);margin:0}
+.rr-brand{font:400 9.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.18em;color:var(--mute);margin:0}
 .rr-header-zone{margin:0 0 0 auto;display:none;font:600 10px/1 Archivo,sans-serif;
   letter-spacing:.16em;color:var(--ivory);border-left:2px solid var(--vermilion);padding-left:9px}
 .rr-onrecord{margin:0 0 0 auto;display:flex;align-items:center;gap:7px;
-  font:400 9.5px/1 'Courier Prime',monospace;letter-spacing:.14em;color:var(--mute)}
+  font:400 9.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.14em;color:var(--mute)}
 .rr-dot{width:6px;height:6px;border-radius:50%;background:var(--ox)}
 
 .rr-stage{max-width:1180px;margin:0 auto;padding:26px 20px 80px}
@@ -970,30 +983,30 @@ main:focus{outline:none}
 .rr-panel{background:var(--paper);color:var(--green);padding:30px 34px;
   background-image:repeating-linear-gradient(180deg,rgba(32,39,34,.05) 0 1px,transparent 1px 29px);
   box-shadow:0 14px 30px rgba(0,0,0,.4),0 1px 0 var(--paper-hi) inset}
-.rr-panel h1{font:600 30px/1.2 Newsreader,serif;margin:10px 0 12px}
-.rr-panel h2{font:600 20px/1.25 Newsreader,serif;margin:26px 0 8px}
+.rr-panel h1{font:600 30px/1.2 Newsreader,'Iowan Old Style',Georgia,serif;margin:10px 0 12px}
+.rr-panel h2{font:600 20px/1.25 Newsreader,'Iowan Old Style',Georgia,serif;margin:26px 0 8px}
 .rr-panel p{max-width:64ch}
-.rr-lede{font:400 17px/1.55 Newsreader,serif;margin-bottom:16px}
+.rr-lede{font:400 17px/1.55 Newsreader,'Iowan Old Style',Georgia,serif;margin-bottom:16px}
 .rr-note{display:block;border-left:2px solid var(--ox);padding-left:12px;
   font-size:14px;color:#4A5245;margin:16px 0}
 
-.rr-stamp{display:inline-block;font:700 9px/1.35 'Courier Prime',monospace;letter-spacing:.14em;
+.rr-stamp{display:inline-block;font:700 9px/1.35 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.14em;
   color:var(--ox);border:2px solid var(--ox);padding:5px 9px;transform:rotate(-1.6deg);opacity:.85;margin:0 0 8px}
-.rr-ep-label{font:700 9.5px/1 'Courier Prime',monospace;letter-spacing:.2em;color:var(--ox);margin:0}
+.rr-ep-label{font:700 9.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.2em;color:var(--ox);margin:0}
 
 .rr-facts{margin:16px 0}
 .rr-facts>div{display:grid;grid-template-columns:180px 1fr;gap:12px;
   border-top:1px solid var(--rule);padding:8px 0}
-.rr-facts dt{font:400 11px/1.4 'Courier Prime',monospace;color:#5A6258}
+.rr-facts dt{font:400 11px/1.4 'Courier Prime',ui-monospace,'Courier New',monospace;color:#5A6258}
 .rr-facts dd{margin:0}
 
 .rr-email{background:var(--paper-hi);border-left:3px solid var(--ox);padding:14px 16px;margin:18px 0}
-.rr-email-head{font:400 10.5px/1 'Courier Prime',monospace;color:#5A6258;margin:0 0 8px}
-.rr-email p:last-child{font:400 16px/1.6 Newsreader,serif;font-style:italic;margin:0}
+.rr-email-head{font:400 10.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;color:#5A6258;margin:0 0 8px}
+.rr-email p:last-child{font:400 16px/1.6 Newsreader,'Iowan Old Style',Georgia,serif;font-style:italic;margin:0}
 
 .rr-redact{background:#0A0E12;color:transparent;padding:0 4px;border-radius:1px;user-select:none}
 
-.rr-app label{display:block;font:400 10.5px/1 'Courier Prime',monospace;letter-spacing:.09em;
+.rr-app label{display:block;font:400 10.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.09em;
   text-transform:uppercase;color:#5A6258;margin:16px 0 6px}
 .rr-app textarea,.rr-app input[type=text],.rr-app input:not([type]){width:100%;
   border:1px solid var(--rule);background:var(--paper-hi);color:var(--green);
@@ -1012,7 +1025,7 @@ main:focus{outline:none}
   cursor:pointer;font-size:13px;padding:8px}
 
 .rr-choices{border:0;padding:0;margin:14px 0;display:flex;gap:10px;flex-wrap:wrap}
-.rr-choices legend{font:400 10.5px/1 'Courier Prime',monospace;letter-spacing:.09em;
+.rr-choices legend{font:400 10.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.09em;
   text-transform:uppercase;color:#5A6258;margin-bottom:8px}
 .rr-choice{flex:1 1 240px;text-align:left;background:var(--paper-hi);border:1px solid var(--rule);
   padding:13px 15px;font:400 14px/1.4 Archivo,sans-serif;color:var(--green);cursor:pointer}
@@ -1020,15 +1033,15 @@ main:focus{outline:none}
 
 .rr-coach{background:var(--paper-hi);border:1px solid var(--rule);border-left:3px solid var(--blue);
   padding:15px 17px;margin:18px 0}
-.rr-coach-tag{font:700 9.5px/1 'Courier Prime',monospace;letter-spacing:.16em;color:var(--blue);margin:0 0 7px}
-.rr-debrief p{font:400 16.5px/1.7 Newsreader,serif;white-space:pre-wrap}
+.rr-coach-tag{font:700 9.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.16em;color:var(--blue);margin:0 0 7px}
+.rr-debrief p{font:400 16.5px/1.7 Newsreader,'Iowan Old Style',Georgia,serif;white-space:pre-wrap}
 
 .rr-envelopes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin:18px 0}
 .rr-envelope{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
   min-height:132px;padding:20px;background:var(--paper-hi);border:1.5px dashed var(--rule);
-  cursor:pointer;font-family:'Courier Prime',monospace;color:var(--ox);width:100%}
+  cursor:pointer;font-family:'Courier Prime',ui-monospace,'Courier New',monospace;color:var(--ox);width:100%}
 .rr-envelope:hover{border-color:var(--ox);background:#E3E4DC}
-.rr-envelope-seal{font:700 12px/1 'Courier Prime',monospace;letter-spacing:.2em}
+.rr-envelope-seal{font:700 12px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.2em}
 .rr-envelope-route{font-size:9.5px;letter-spacing:.14em;color:#5A6258}
 .rr-envelope-open{font:500 11px/1 Archivo,sans-serif;letter-spacing:.1em;text-transform:uppercase;
   color:var(--green);border-bottom:1px solid var(--green);padding-bottom:2px;margin-top:4px}
@@ -1036,45 +1049,45 @@ main:focus{outline:none}
 .rr-card{background:var(--paper-hi);border:1px solid var(--rule);border-top:4px solid var(--ox);padding:16px 18px}
 .rr-card-navy{border-top-color:var(--blue)}
 .rr-card-gold{border-top-color:#8A5F1E}
-.rr-card-no{font:700 9px/1 'Courier Prime',monospace;letter-spacing:.16em;color:var(--ox)}
-.rr-card h4{font:600 17px/1.25 Newsreader,serif;margin:7px 0 3px}
-.rr-card-type{font:400 10px/1 'Courier Prime',monospace;color:#5A6258}
+.rr-card-no{font:700 9px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.16em;color:var(--ox)}
+.rr-card h4{font:600 17px/1.25 Newsreader,'Iowan Old Style',Georgia,serif;margin:7px 0 3px}
+.rr-card-type{font:400 10px/1 'Courier Prime',ui-monospace,'Courier New',monospace;color:#5A6258}
 .rr-card p{font-size:14px;margin:10px 0}
 .rr-card-changes{border-top:1px solid var(--rule);padding-top:10px;font-size:13.5px;color:var(--green)}
-.rr-card-changes strong{display:block;font:700 9px/1 'Courier Prime',monospace;
+.rr-card-changes strong{display:block;font:700 9px/1 'Courier Prime',ui-monospace,'Courier New',monospace;
   letter-spacing:.16em;color:var(--blue);margin-bottom:5px}
 .rr-unseen{font:400 13px/1.6 Archivo,sans-serif;color:#5A6258;border-top:1px solid var(--rule);padding-top:12px}
 
 .rr-wildcard{margin-top:22px;background:var(--slate);padding:16px 18px;border:1px solid var(--edge)}
-.rr-wildcard-tag{font:700 9px/1 'Courier Prime',monospace;letter-spacing:.18em;color:var(--amber);margin:0 0 12px}
+.rr-wildcard-tag{font:700 9px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.18em;color:var(--amber);margin:0 0 12px}
 
 /* ---- transcript ---- */
 .rr-chat{margin-top:18px}
 .rr-transcript{background:var(--paper-hi);border:1px solid var(--rule);padding:20px 22px;
   max-height:440px;overflow-y:auto}
-.rr-transcript-head{font:700 9.5px/1 'Courier Prime',monospace;letter-spacing:.2em;color:#5A6258;margin:0}
+.rr-transcript-head{font:700 9.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.2em;color:#5A6258;margin:0}
 .rr-rule{border:0;border-top:2px solid var(--green);width:64px;margin:9px 0 20px}
 .rr-turn{margin-bottom:22px}
 .rr-turn-user{border-left:2px solid var(--rule);padding-left:16px;margin-left:32px}
 .rr-speaker{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
-  font:700 9.5px/1 'Courier Prime',monospace;letter-spacing:.16em;color:var(--green);margin:0 0 5px}
+  font:700 9.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.16em;color:var(--green);margin:0 0 5px}
 .rr-turn-user .rr-speaker{color:#5A6258}
-.rr-line{margin:0;font:400 19px/1.55 Newsreader,serif;color:var(--green);max-width:56ch;text-wrap:pretty}
+.rr-line{margin:0;font:400 19px/1.55 Newsreader,'Iowan Old Style',Georgia,serif;color:var(--green);max-width:56ch;text-wrap:pretty}
 .rr-turn-user .rr-line{font:400 15px/1.6 Archivo,sans-serif;color:#3E463C;max-width:58ch}
 .rr-struck{opacity:.34;filter:saturate(.3)}
 .rr-struck .rr-line{text-decoration:line-through;text-decoration-thickness:1px}
-.rr-up{color:#4E6B4A;font:700 8.5px/1 'Courier Prime',monospace;letter-spacing:.12em}
-.rr-down{color:var(--ox);font:700 8.5px/1 'Courier Prime',monospace;letter-spacing:.12em}
-.rr-tag-retake{font:700 8.5px/1 'Courier Prime',monospace;letter-spacing:.12em;color:var(--blue)}
-.rr-degraded{font:400 12px/1.5 'Courier Prime',monospace;color:#5A6258;font-style:italic;margin:6px 0 0}
+.rr-up{color:#4E6B4A;font:700 8.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.12em}
+.rr-down{color:var(--ox);font:700 8.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.12em}
+.rr-tag-retake{font:700 8.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.12em;color:var(--blue)}
+.rr-degraded{font:400 12px/1.5 'Courier Prime',ui-monospace,'Courier New',monospace;color:#5A6258;font-style:italic;margin:6px 0 0}
 
 .rr-void{position:relative;border-top:2px solid var(--ox);border-bottom:2px solid var(--ox);
   padding:22px 0 16px;margin:26px 0}
 .rr-void-stamp{position:absolute;top:-18px;left:56px;transform:rotate(-6deg);
   border:3px double var(--ox);padding:5px 13px;background:var(--paper-hi);
-  font:700 14px/1 'Courier Prime',monospace;letter-spacing:.2em;color:var(--ox)}
-.rr-void-head{font:700 9.5px/1.6 'Courier Prime',monospace;letter-spacing:.16em;color:var(--ox);margin:0 0 8px}
-.rr-holding,.rr-waiting{font:400 12px/1.6 'Courier Prime',monospace;color:#5A6258;font-style:italic}
+  font:700 14px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.2em;color:var(--ox)}
+.rr-void-head{font:700 9.5px/1.6 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.16em;color:var(--ox);margin:0 0 8px}
+.rr-holding,.rr-waiting{font:400 12px/1.6 'Courier Prime',ui-monospace,'Courier New',monospace;color:#5A6258;font-style:italic}
 
 .rr-compose{display:flex;gap:10px;margin-top:14px}
 .rr-compose input{flex:1;border:1px solid var(--rule);background:var(--paper);padding:13px 14px;
@@ -1085,15 +1098,15 @@ main:focus{outline:none}
 .rr-compose button:disabled{opacity:.35;cursor:not-allowed}
 .rr-chat-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:12px}
 .rr-hold-btn{border:2px solid var(--ox);background:transparent;color:var(--ox);
-  padding:9px 16px;font:700 10px/1 'Courier Prime',monospace;letter-spacing:.14em;cursor:pointer}
+  padding:9px 16px;font:700 10px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.14em;cursor:pointer}
 .rr-hold-btn:hover{background:var(--ox);color:var(--paper-hi)}
 .rr-nonneg{background:var(--paper-hi);border-left:3px solid var(--blue);padding:11px 14px;font-size:14px}
-.rr-nonneg span{display:block;font:700 9px/1 'Courier Prime',monospace;
+.rr-nonneg span{display:block;font:700 9px/1 'Courier Prime',ui-monospace,'Courier New',monospace;
   letter-spacing:.16em;color:var(--blue);margin-bottom:5px}
 
 /* ---- the gauge ---- */
 .rr-meter{background:var(--slate);border:1px solid var(--edge);padding:16px 18px}
-.rr-meter-head{font:700 9px/1 'Courier Prime',monospace;letter-spacing:.2em;color:#6E7A85;margin:0}
+.rr-meter-head{font:700 9px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.2em;color:#6E7A85;margin:0}
 .rr-meter-sub{margin-top:20px;padding-top:14px;border-top:1px solid var(--edge)}
 .rr-dial{position:relative;width:100%;aspect-ratio:1;max-width:236px;margin:12px auto 0}
 .rr-dial-bezel{position:absolute;inset:0;border-radius:50%;
@@ -1122,33 +1135,33 @@ main:focus{outline:none}
 .rr-zone-now{text-align:center;margin:10px 0 0}
 .rr-zone-now strong{display:block;font:600 22px/1.1 Archivo,sans-serif;letter-spacing:.12em;
   text-transform:uppercase;color:var(--ivory)}
-.rr-zone-now span{font:400 11px/1.6 'Courier Prime',monospace;color:#6E7A85}
+.rr-zone-now span{font:400 11px/1.6 'Courier Prime',ui-monospace,'Courier New',monospace;color:#6E7A85}
 
 .rr-strip{position:relative;background:var(--ivory);margin-top:10px;
   box-shadow:0 3px 8px rgba(0,0,0,.45);
   background-image:repeating-linear-gradient(90deg,rgba(90,86,72,.2) 0 1px,transparent 1px 24px),
     repeating-linear-gradient(180deg,rgba(90,86,72,.2) 0 1px,transparent 1px 15.5px)}
 .rr-strip-tag{position:absolute;left:8px;top:6px;
-  font:400 8px/1 'Courier Prime',monospace;letter-spacing:.1em;color:#6C6656}
+  font:400 8px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.1em;color:#6C6656}
 
 .rr-movelog{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:9px}
-.rr-movelog li{font:400 10px/1.45 'Courier Prime',monospace;color:#8B97A2}
+.rr-movelog li{font:400 10px/1.45 'Courier Prime',ui-monospace,'Courier New',monospace;color:#8B97A2}
 .rr-movelog em{display:block;color:#5C6873;font-style:normal}
 .rr-movelog-empty{color:#5C6873}
 
 .rr-needs{background:var(--slate);border:1px solid var(--edge);padding:16px 18px}
-.rr-needs p{font:400 14px/1.65 Newsreader,serif;color:#B9C3CB;margin:9px 0 0;max-width:none}
-.rr-sealed{font:400 9px/1.5 'Courier Prime',monospace!important;letter-spacing:.1em;color:#5C6873!important}
+.rr-needs p{font:400 14px/1.65 Newsreader,'Iowan Old Style',Georgia,serif;color:#B9C3CB;margin:9px 0 0;max-width:none}
+.rr-sealed{font:400 9px/1.5 'Courier Prime',ui-monospace,'Courier New',monospace!important;letter-spacing:.1em;color:#5C6873!important}
 
 .rr-resume{background:var(--paper-hi);border:2px solid var(--blue);padding:16px 18px;margin:22px 0}
-.rr-resume-head{font:700 9.5px/1 'Courier Prime',monospace;letter-spacing:.16em;color:var(--blue);margin:0 0 8px}
+.rr-resume-head{font:700 9.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.16em;color:var(--blue);margin:0 0 8px}
 .rr-resume-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .rr-resume-actions .rr-primary{margin-top:8px}
 
 .rr-retakes{margin-top:26px;border-top:1px solid var(--rule);padding-top:8px}
 .rr-retake-pair{border-left:2px solid var(--blue);padding-left:14px;margin:14px 0}
 .rr-retake-pair p{margin:4px 0;font-size:14px}
-.rr-closing{margin-top:22px;font:400 17px/1.65 Newsreader,serif;border-top:2px solid var(--green);padding-top:16px}
+.rr-closing{margin-top:22px;font:400 17px/1.65 Newsreader,'Iowan Old Style',Georgia,serif;border-top:2px solid var(--green);padding-top:16px}
 
 @media (max-width:900px){
   .rr-stage-split{grid-template-columns:minmax(0,1fr)}

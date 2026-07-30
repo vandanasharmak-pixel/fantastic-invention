@@ -10,6 +10,7 @@
  */
 
 import { parseJSONish, normaliseClientReply } from './parse.js';
+import { repairClientReply, recordRepair } from './consistency.js';
 
 export const MODEL = 'claude-opus-5';
 const ENDPOINT = 'https://api.anthropic.com/v1/messages';
@@ -149,9 +150,10 @@ export function inFictionFallback(persona = 'reyes') {
  * `degraded` tells the UI to mark the beat without breaking the fiction.
  */
 export async function askClient(persona, system, userText, opts = {}) {
+  const { traineeText = '', ...rest } = opts;
   const { ok, text, aborted } = await callClaude(system, userText, {
     schema: CLIENT_REPLY_SCHEMA,
-    ...opts,
+    ...rest,
   });
 
   if (!ok) {
@@ -165,7 +167,14 @@ export async function askClient(persona, system, userText, opts = {}) {
   }
 
   const parsed = parseJSONish(text);
-  return { ...normaliseClientReply(parsed.value, text), degraded: false, via: parsed.via };
+  const reply = normaliseClientReply(parsed.value, text);
+  const checked = repairClientReply(traineeText, reply);
+
+  if (checked.repaired) {
+    recordRepair({ persona, kind: checked.repaired, said: traineeText, scored: reply.trust_delta });
+  }
+
+  return { ...checked, degraded: false, via: parsed.via };
 }
 
 /** Facilitator/coach prose — no schema, plain text is the deliverable. */

@@ -17,18 +17,19 @@ src/core/trust.js           Trust Meter reducer — append-only event log
 src/core/chatMachine.js     Hold/Replay state machine (idle|awaitingReply|holding|replaying)
 src/core/parse.js           Three-pass defensive parsing of persona replies
 src/core/api.js             callClaude — retry once, then an in-fiction beat
+src/core/consistency.js     Persona-drift guard — reassurance is never rewarded
 src/core/storage.js         Versioned persistence + resume affordance
 src/core/sessionContext.js  The condensed brief every persona prompt receives
 src/content/cards.js        All 20 confidential cards, with the guide's routing
 src/content/personas.js     Reyes, Priya and the facilitator, per Deliverable Five
-test/core.test.js           27 tests
+test/core.test.js           33 tests
 scripts/trace-trust.js      Hand-traceable trust ledger
 ```
 
 ```sh
-npm test        # 27 unit tests
+npm test        # 33 unit tests
 npm run trace   # walk an Episode Two hold/replay by hand
-npm run verify  # drive the real app in a real browser — 22 checks
+npm run verify  # drive the real app in a real browser — 36 checks
 ```
 
 `npm run verify` bundles `dev/harness.jsx` (which stubs the Messages API with
@@ -36,7 +37,24 @@ guide-faithful canned replies) and drives the app headless: it plays a
 reassurance, calls Hold, plays the retake, and asserts the flawed exchange is
 struck rather than deleted and that trust lands on the pre-Hold baseline. It
 also runs the flow with the API failing every call, reloads mid-session to check
-resume, and measures the layout at 390px. Screenshots land in `dev/`.
+resume, measures the layout at 390px, and walks the whole arc — envelopes, the
+escalation to Priya, the recovery conversation, the Grand Debrief — asserting
+the meter stayed scarce throughout. Screenshots land in `dev/`.
+
+## Persona-drift guard
+
+The brief offered three repair options, to be chosen on observed drift. All
+three are in play, in ascending cost: a JSON schema whose `trust_delta`
+description states the asymmetry; worked scoring examples in the system prompt;
+and `consistency.js`, which catches the one failure the guide names explicitly.
+
+A second validation call is deliberately **not** used — it doubles latency
+inside a live conversation, and this failure is narrow enough to catch locally.
+The repair only ever *withholds* reward: it zeroes a positive score on
+reassurance-coded or blame-coded input rather than inventing a penalty, because
+the actual rule is "reassures **without evidence**" and a regex cannot see
+evidence. Every repair is recorded to `window.__rrDrift`, so a real session
+gives you the drift rate the brief asked about.
 
 ## The visual world
 
@@ -74,8 +92,10 @@ moves. Persona replies cannot hand the room a flattering ending.
 
 **Moves are scarce.** _"Do not move the Meter for every small thing — you will
 exhaust its meaning… four or five deliberate, narrated moves across the whole
-Lab land far harder than twenty small ones."_ Most exchanges should score a
-delta of 0; the persona prompt has to enforce this.
+Lab land far harder than twenty small ones."_ Most exchanges score 0, and a
+zero-delta turn is not recorded as an event at all — so the movement log stays
+a record of pivots rather than a transcript. The reducer enforces this; the
+prompt only asks for it.
 
 **Superseded events are kept, not deleted.** A replayed mistake stays in the
 log with `superseded: true` and contributes nothing to the total, because the
