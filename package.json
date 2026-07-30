@@ -10,7 +10,9 @@
     "build:harness": "esbuild dev/harness.jsx --bundle --outfile=dev/bundle.js --loader:.jsx=jsx --jsx=automatic --format=iife --log-level=warning",
     "verify": "npm run build:harness && node dev/walkthrough.mjs",
     "build": "node scripts/build-standalone.mjs",
-    "verify:standalone": "npm run build && node dev/check-standalone.mjs"
+    "verify:standalone": "npm run build && node dev/check-standalone.mjs && node dev/check-seamless.mjs",
+    "build:personal": "node scripts/build-standalone.mjs --personal",
+    "probe": "node scripts/drift-probe.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",

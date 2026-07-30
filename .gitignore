@@ -2,3 +2,7 @@ node_modules/
 package-lock.json
 dev/bundle.js
 dev/shot-*.png
+
+# Contains a real API key — never commit.
+relationship-room-personal.html
+.env

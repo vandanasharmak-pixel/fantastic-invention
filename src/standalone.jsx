@@ -13,14 +13,18 @@ import { configureApi } from './core/api.js';
 
 const KEY_STORE = 'relationship-room-key';
 
+/**
+ * A key baked in at build time by `npm run build:personal`. Absent in the
+ * shared build, which is why it is read through a guard rather than inlined —
+ * a distributed file must never carry someone's credential.
+ */
+const BUILT_IN_KEY = (typeof __RR_BUILTIN_KEY__ === 'string' && __RR_BUILTIN_KEY__) || null;
+
 function Gate({ onReady }) {
   const [key, setKey] = useState('');
   const [remember, setRemember] = useState(true);
   const [saved, setSaved] = useState(null);
-
-  useEffect(() => {
-    try { setSaved(localStorage.getItem(KEY_STORE)); } catch { /* private mode */ }
-  }, []);
+  const [checked, setChecked] = useState(false);
 
   const start = (apiKey) => {
     configureApi({ apiKey, mode: 'direct' });
@@ -34,6 +38,29 @@ function Gate({ onReady }) {
     configureApi({ mode: 'rehearsal' });
     onReady();
   };
+
+  const forget = () => {
+    try { localStorage.removeItem(KEY_STORE); } catch { /* ignore */ }
+    setSaved(null);
+  };
+
+  // Seamless on every run after the first: a key already in this browser (or
+  // baked into a personal build) starts the Lab without asking again.
+  useEffect(() => {
+    let stored = null;
+    try { stored = localStorage.getItem(KEY_STORE); } catch { /* private mode */ }
+    const auto = BUILT_IN_KEY ?? stored;
+    if (auto) {
+      configureApi({ apiKey: auto, mode: 'direct' });
+      onReady();
+      return;
+    }
+    setSaved(stored);
+    setChecked(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Don't flash the gate before we know whether we can skip it.
+  if (!checked) return <div className="rr-app" />;
 
   return (
     <div className="rr-app">
@@ -52,14 +79,9 @@ function Gate({ onReady }) {
           <p>
             Reyes and Priya are played by Claude, so they react to what you
             actually say rather than to a script. This needs your own Anthropic
-            API key.
+            API key — asked for once, then remembered, so every later run opens
+            straight into the account file.
           </p>
-
-          {saved && (
-            <button type="button" className="rr-primary" onClick={() => start(saved)}>
-              Continue with the saved key →
-            </button>
-          )}
 
           <label htmlFor="rr-key">Anthropic API key</label>
           <input
@@ -100,6 +122,14 @@ function Gate({ onReady }) {
             Run the rehearsal →
           </button>
         </section>
+
+        {saved && (
+          <p className="rr-colophon">
+            A saved key is being used automatically.{' '}
+            <button type="button" className="rr-link" onClick={forget}>Forget it</button>{' '}
+            to enter a different one.
+          </p>
+        )}
 
         <p className="rr-colophon">
           Built from <em>The Relationship Room</em> facilitator guide — VEE
@@ -146,6 +176,8 @@ const GATE_CSS = `
   margin-top:10px;font:500 13px/1 Archivo,sans-serif;cursor:pointer}
 .rr-gate .rr-continue:hover{background:#D7D9CF;color:#202722}
 .rr-colophon{margin-top:26px;font-size:12.5px;color:#5C6873}
+.rr-link{background:none;border:0;padding:0;color:#B9C3CB;text-decoration:underline;
+  cursor:pointer;font:inherit}
 @media (max-width:600px){.rr-gate{padding:28px 16px 60px}.rr-gate h1{font-size:27px}}
 `;
 

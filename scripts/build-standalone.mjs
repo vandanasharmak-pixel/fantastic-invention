@@ -10,7 +10,22 @@
 import { build } from 'esbuild';
 import { writeFile, stat } from 'node:fs/promises';
 
-const OUT = 'relationship-room.html';
+/**
+ * `npm run build` produces the shareable file: no key, gate on open.
+ *
+ * `npm run build:personal` bakes ANTHROPIC_API_KEY into a copy that opens
+ * straight into the account file. That copy is gitignored and must not be
+ * shared — anyone holding it holds the key.
+ */
+const PERSONAL = process.argv.includes('--personal');
+const KEY = PERSONAL ? process.env.ANTHROPIC_API_KEY : null;
+
+if (PERSONAL && !KEY) {
+  console.error('build:personal needs ANTHROPIC_API_KEY in the environment.');
+  process.exit(2);
+}
+
+const OUT = PERSONAL ? 'relationship-room-personal.html' : 'relationship-room.html';
 
 const result = await build({
   entryPoints: ['src/standalone.jsx'],
@@ -19,7 +34,10 @@ const result = await build({
   format: 'iife',
   jsx: 'automatic',
   loader: { '.jsx': 'jsx' },
-  define: { 'process.env.NODE_ENV': '"production"' },
+  define: {
+    'process.env.NODE_ENV': '"production"',
+    __RR_BUILTIN_KEY__: JSON.stringify(KEY),
+  },
   write: false,
   logLevel: 'warning',
 });
@@ -62,3 +80,6 @@ const html = `<!doctype html>
 await writeFile(OUT, html, 'utf8');
 const { size } = await stat(OUT);
 console.log(`${OUT} — ${(size / 1024).toFixed(0)} KB, self-contained`);
+if (PERSONAL) {
+  console.log('  ⚠ contains your API key. Gitignored. Do not share this copy.');
+}

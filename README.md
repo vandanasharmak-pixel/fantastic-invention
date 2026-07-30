@@ -39,7 +39,9 @@ npm run verify:standalone   # build it, then play it straight off disk
 `npm run build` produces **`relationship-room.html`** — 290 KB, everything
 inlined, no server and no build step at the other end. Double-click it.
 
-On open it asks how it should talk to a client:
+It asks how to talk to a client **once**. After that, every run opens straight
+into the account file — the key is kept in `localStorage`, and there's a
+*Forget it* link if you need to change it.
 
 - **With your own Anthropic API key.** Reyes and Priya are played by Claude and
   react to what you actually say. The key goes from the page straight to
@@ -51,6 +53,22 @@ On open it asks how it should talk to a client:
   Replay, with the client following Deliverable Five's branch table instead of
   improvising. Nothing leaves the machine. `offlineClient.js` is shared with the
   test harness, so the two can't drift apart.
+
+### Baking a key in
+
+`npm run build:personal` (with `ANTHROPIC_API_KEY` in the environment) writes
+`relationship-room-personal.html` with the key compiled in, so it never asks at
+all. **That file is gitignored and must not be shared or hosted** — anyone
+holding it holds the key. The shared `npm run build` output never contains one,
+and a test asserts it.
+
+### Drift, measured
+
+`npm run probe` runs 15 trainee lines whose correct scoring the guide states
+outright through the live Reyes prompt. Measured on `claude-opus-5`: **13/15
+correct, and zero cases of reassurance scored positive** — the failure
+`consistency.js` exists to catch did not occur. The guard is cheap, deterministic
+and tested, so it stays as insurance, but the prompt is carrying the weight.
 
 `npm run verify:standalone` opens the built file from a real `file://` origin
 and plays the rehearsal through Hold and Replay — including a check that
