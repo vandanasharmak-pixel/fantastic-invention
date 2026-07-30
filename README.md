@@ -26,9 +26,17 @@ scripts/trace-trust.js      Hand-traceable trust ledger
 ```
 
 ```sh
-npm test       # 27 tests
-npm run trace  # walk an Episode Two hold/replay by hand
+npm test        # 27 unit tests
+npm run trace   # walk an Episode Two hold/replay by hand
+npm run verify  # drive the real app in a real browser — 22 checks
 ```
+
+`npm run verify` bundles `dev/harness.jsx` (which stubs the Messages API with
+guide-faithful canned replies) and drives the app headless: it plays a
+reassurance, calls Hold, plays the retake, and asserts the flawed exchange is
+struck rather than deleted and that trust lands on the pre-Hold baseline. It
+also runs the flow with the API failing every call, reloads mid-session to check
+resume, and measures the layout at 390px. Screenshots land in `dev/`.
 
 ## The visual world
 
@@ -102,3 +110,13 @@ earned it, _A Message From Reyes_ arrives instead. Neither is guaranteed.
   then falls back to a client-shaped silence.
 - **Envelopes were click-only `<div>`s**, the chat log had no live region, and
   the two-column worksheet and envelope grid had no single-column fallback.
+
+Three more surfaced only once the app was driven in a browser:
+
+- **A replay struck the client's reply but left the trainee's own flawed line
+  standing**, because the two halves of an exchange were never linked.
+- **`window.storage` does not exist in an ordinary browser**, so the default
+  backend resolved to nothing and every save silently no-opped outside Claude
+  Design. `localStorage` is now probe-verified first.
+- **The dial's zone labels collided with the tick ring**, which is why they were
+  illegible; they're a scale strip under the dial now.

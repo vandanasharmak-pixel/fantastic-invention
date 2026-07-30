@@ -3,9 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Solo, AI-powered version of The Relationship Room — a five-episode simulation in protecting a strategic client relationship.",
+  "description": "Solo, AI-powered version of The Relationship Room \u2014 a five-episode simulation in protecting a strategic client relationship.",
   "scripts": {
     "test": "node --test 'test/*.test.js'",
-    "trace": "node scripts/trace-trust.js"
+    "trace": "node scripts/trace-trust.js",
+    "build:harness": "esbuild dev/harness.jsx --bundle --outfile=dev/bundle.js --loader:.jsx=jsx --jsx=automatic --format=iife --log-level=warning",
+    "verify": "npm run build:harness && node dev/walkthrough.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "playwright": "^1.62.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   }
 }

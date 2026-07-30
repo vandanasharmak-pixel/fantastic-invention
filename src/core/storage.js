@@ -82,8 +82,41 @@ export function resumeLabel(save) {
  * Debounced writer. Meaningful state changes only — never per keystroke.
  * `backend` defaults to `window.storage` but is injectable for tests.
  */
+/**
+ * Resolve a storage backend, normalising the two shapes in play.
+ *
+ * The prototype called `window.storage.set(...)` behind optional chaining — a
+ * host API that does not exist in an ordinary browser, so every save silently
+ * did nothing outside Claude Design. Prefer the host API when it is genuinely
+ * present, fall back to localStorage, and give up gracefully if neither is
+ * (private mode, sandboxed iframe, SSR).
+ */
+export function resolveBackend(explicit) {
+  if (explicit) return explicit;
+  if (typeof window === 'undefined') return null;
+
+  // localStorage first: synchronous, and we can prove it works with a probe
+  // rather than assuming. A sandboxed iframe or private mode throws here.
+  try {
+    const probe = '__rr_probe__';
+    window.localStorage.setItem(probe, '1');
+    window.localStorage.removeItem(probe);
+    return window.localStorage;
+  } catch { /* fall through to the host API */ }
+
+  // Host-provided storage, only in the synchronous Web Storage shape. The
+  // prototype awaited `window.storage.set(...)`, so a get/set API may well be
+  // Promise-based — and a Promise returned from getItem would parse as garbage
+  // rather than fail loudly. Not worth guessing; a save that silently no-ops is
+  // the exact bug this module exists to remove.
+  const host = window.storage;
+  if (host && typeof host.getItem === 'function' && typeof host.setItem === 'function') return host;
+
+  return null;
+}
+
 export function createPersistence({ backend, key = STORAGE_KEY, delay = 500 } = {}) {
-  const store = backend ?? (typeof window !== 'undefined' ? window.storage : null);
+  const store = resolveBackend(backend);
   let timer = null;
   let pending = null;
 

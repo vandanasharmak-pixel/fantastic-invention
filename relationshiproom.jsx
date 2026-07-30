@@ -57,9 +57,6 @@ function TrustMeter({ trust, events, compact }) {
         <div className="rr-dial-face" />
         <div className="rr-dial-arcs" />
         <div className="rr-dial-ticks" />
-        {ZONES.map((z, i) => (
-          <span key={z.id} className={`rr-dial-label rr-dial-label-${i}`}>{z.label}</span>
-        ))}
         <div className="rr-needle" style={{ transform: `rotate(${angle}deg)` }} />
         <div className="rr-dial-hub" />
       </div>
@@ -68,6 +65,12 @@ function TrustMeter({ trust, events, compact }) {
         <strong>{zone.label}</strong>
         <span>{zone.caption}</span>
       </p>
+
+      <ol className="rr-scale" aria-hidden="true">
+        {ZONES.map((z) => (
+          <li key={z.id} className={z.id === zone.id ? "rr-scale-on" : ""}>{z.label}</li>
+        ))}
+      </ol>
 
       {!compact && (
         <>
@@ -82,15 +85,20 @@ function TrustMeter({ trust, events, compact }) {
           <h3 className="rr-meter-head rr-meter-sub">MOVEMENT LOG</h3>
           <ul className="rr-movelog">
             {log.length === 0 && <li className="rr-movelog-empty">opened at NEUTRAL · inherited position</li>}
-            {log.map((e) => (
-              <li key={e.id}>
-                <span className={e.delta >= 0 ? "rr-up" : "rr-down"}>
-                  {e.delta >= 0 ? "▲" : "▼"} EP{e.episode}
-                </span>{" "}
-                {zoneFor(e.trustBefore).label} → {zoneFor(e.trustAfter).label}
-                <em>{e.reason}</em>
-              </li>
-            ))}
+            {log.map((e) => {
+              const from = zoneFor(e.trustBefore), to = zoneFor(e.trustAfter);
+              return (
+                <li key={e.id}>
+                  <span className={e.delta >= 0 ? "rr-up" : "rr-down"}>
+                    {e.delta >= 0 ? "▲" : "▼"} EP{e.episode}
+                  </span>{" "}
+                  {from.id === to.id
+                    ? `held in ${to.label.toUpperCase()}`
+                    : `${from.label.toUpperCase()} → ${to.label.toUpperCase()}`}
+                  <em>{e.reason}</em>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}
@@ -193,7 +201,9 @@ function ClientChat({ persona, episode, state, dispatch, minTurns = 2, onDone })
         : [...prev];
       return [
         ...next,
-        { role: "user", text, replay: !!replayOf, pairedWith: null },
+        // Both halves of the exchange carry the event id, so a replay strikes
+        // the trainee's line as well as the client's reaction to it.
+        { role: "user", text, replay: !!replayOf, pairedWith: eventId },
         {
           role: "client", text: reply.speech, pivot: reply.pivot,
           delta: reply.trust_delta, trustEventId: eventId, degraded: reply.degraded,
@@ -857,6 +867,14 @@ export default function App() {
 
       <header className="rr-header">
         <p className="rr-brand">VEE PRACTICE LAB / CIRRUS ONE</p>
+        {/* The board "must never be out of sight" — on a phone the rail
+            scrolls away, so the zone rides along in the sticky header. */}
+        {showMeter && (
+          <p className="rr-header-zone">
+            <span className="rr-sr">Client trust: </span>
+            {zoneFor(state.trust).label.toUpperCase()}
+          </p>
+        )}
         <p className="rr-onrecord">
           <span className="rr-dot" aria-hidden="true" />
           {state.screen === "intro" ? "FILE SEALED" : "ON RECORD"}
@@ -939,6 +957,8 @@ main:focus{outline:none}
 .rr-header{display:flex;align-items:center;gap:16px;height:46px;padding:0 20px;
   background:#0C1116;border-bottom:1px solid var(--edge);position:sticky;top:0;z-index:10}
 .rr-brand{font:400 9.5px/1 'Courier Prime',monospace;letter-spacing:.18em;color:var(--mute);margin:0}
+.rr-header-zone{margin:0 0 0 auto;display:none;font:600 10px/1 Archivo,sans-serif;
+  letter-spacing:.16em;color:var(--ivory);border-left:2px solid var(--vermilion);padding-left:9px}
 .rr-onrecord{margin:0 0 0 auto;display:flex;align-items:center;gap:7px;
   font:400 9.5px/1 'Courier Prime',monospace;letter-spacing:.14em;color:var(--mute)}
 .rr-dot{width:6px;height:6px;border-radius:50%;background:var(--ox)}
@@ -1088,13 +1108,11 @@ main:focus{outline:none}
   background:repeating-conic-gradient(from 240deg,#4A4D46 0 .45deg,transparent .45deg 6deg);
   mask:radial-gradient(circle closest-side,transparent 62%,#000 63%,#000 72%,transparent 73%);
   -webkit-mask:radial-gradient(circle closest-side,transparent 62%,#000 63%,#000 72%,transparent 73%)}
-.rr-dial-label{position:absolute;transform:translate(-50%,-50%);
-  font:600 8px/1 Archivo,sans-serif;letter-spacing:.14em;color:#6C6656;white-space:nowrap}
-.rr-dial-label-0{left:20%;top:56%}
-.rr-dial-label-1{left:28%;top:31%}
-.rr-dial-label-2{left:50%;top:20%}
-.rr-dial-label-3{left:72%;top:31%}
-.rr-dial-label-4{left:80%;top:56%}
+.rr-scale{list-style:none;display:flex;margin:12px 0 0;padding:0;border-top:1px solid var(--edge)}
+.rr-scale li{flex:1;padding:7px 2px 0;text-align:center;
+  font:600 7.5px/1.3 Archivo,sans-serif;letter-spacing:.08em;text-transform:uppercase;
+  color:#5C6873;border-top:2px solid transparent;margin-top:-1px}
+.rr-scale-on{color:var(--ivory)!important;border-top-color:var(--vermilion)!important}
 .rr-needle{position:absolute;left:50%;bottom:50%;width:2px;height:38%;margin-left:-1px;
   transform-origin:50% 100%;background:linear-gradient(180deg,var(--vermilion) 0 72%,#7C2C25 72%);
   transition:transform 1.4s cubic-bezier(.34,1.24,.42,1)}
@@ -1134,15 +1152,29 @@ main:focus{outline:none}
 
 @media (max-width:900px){
   .rr-stage-split{grid-template-columns:minmax(0,1fr)}
+  /* The meter stays in sight, but the session trace and movement log would
+     push the actual task below two screens. Keep the dial and the zone; the
+     detail is still there in the debrief. */
   .rr-rail{position:static;order:-1}
-  .rr-dial{max-width:190px}
+  .rr-rail .rr-strip,.rr-rail .rr-movelog,.rr-rail .rr-meter-sub,.rr-needs{display:none}
+  .rr-dial{max-width:150px}
+  .rr-zone-now strong{font-size:19px}
   .rr-two-col{grid-template-columns:1fr}
   .rr-envelopes{grid-template-columns:1fr}
+  .rr-facts>div{grid-template-columns:1fr;gap:2px}
+  .rr-choices{flex-direction:column}
+  .rr-compose{flex-wrap:wrap}
+  .rr-compose input{flex:1 1 100%}
+  .rr-compose button{flex:1;padding:12px}
   .rr-panel{padding:22px 18px}
   .rr-panel h1{font-size:25px}
   .rr-turn-user{margin-left:0}
   .rr-line{font-size:17px}
   .rr-void-stamp{left:12px}
+  .rr-header{padding:0 14px;gap:10px}
+  .rr-brand{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rr-header-zone{display:block;margin-left:auto}
+  .rr-onrecord{display:none}
 }
 
 @media (prefers-reduced-motion:reduce){
