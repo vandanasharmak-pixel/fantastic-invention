@@ -347,6 +347,11 @@ export const wildcards = () => CARDS.filter((c) => c.table === 'WILDCARD');
  * other two strands held — reproducing "the colleague at the next table is
  * holding a piece of the picture you'd give anything to see."
  */
+export const STRANDS = ['A', 'B', 'C'];
+
+/** Which strand this session inherits. Rotating it makes a replay a new Lab. */
+export const strandForSeed = (seed = 0) => STRANDS[Math.abs(seed) % STRANDS.length];
+
 export function soloEpisodeThreeDraw(strand = 'A') {
   const held = cardsForEpisode(3).filter((c) => c.table === strand);
   const unseen = cardsForEpisode(3).filter((c) => c.table !== strand);
@@ -355,12 +360,31 @@ export function soloEpisodeThreeDraw(strand = 'A') {
 
 /**
  * Episode Four deal. Card 11 always lands; the rest raise the escalation
- * stakes. In solo play deal two so the crucible has real horns.
+ * stakes. In solo play deal two so the crucible has real horns — rotated by
+ * seed, because a fixed slice would leave cards 14-16 permanently unplayed.
  */
-export function episodeFourDraw(count = 2) {
+export function episodeFourDraw(count = 2, seed = 0) {
   const always = CARDS.filter((c) => c.episode === 4 && c.table === 'ALL');
   const pool = CARDS.filter((c) => c.episode === 4 && c.table === 'ONE');
-  return { always, dealt: pool.slice(0, count), pool };
+  const start = Math.abs(seed) % pool.length;
+  const dealt = Array.from({ length: Math.min(count, pool.length) },
+    (_, i) => pool[(start + i) % pool.length]);
+  return { always, dealt, pool };
+}
+
+/**
+ * The Grand Debrief's pooling moment.
+ *
+ * "The discomfort a table feels when it learns another table knew something
+ * crucial… is why the Grand Debrief, where the tables finally pool what they
+ * knew, lands with the force of a revelation rather than a summary."
+ *
+ * Solo play has no other tables, so the close is where every card the session
+ * never dealt is finally laid out.
+ */
+export function unseenAtClose(cardsOpened = []) {
+  const seen = new Set(cardsOpened);
+  return CARDS.filter((c) => !seen.has(c.id));
 }
 
 const ZONE_ORDER = ['BROKEN', 'GUARDED', 'NEUTRAL', 'WARMING', 'TRUSTED'];

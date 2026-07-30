@@ -103,7 +103,8 @@ await run('/', 'Full flow · Episode Two · hold → replay', async (page) => {
 });
 
 /* ---- 1b. the whole arc, Prologue through the Grand Debrief ---- */
-await run('/', 'Full arc · all five episodes → debrief', async (page) => {
+// seed=0 pins strand A (cards 1-3) and the 12/13 pressure deal.
+await run('/?seed=0', 'Full arc · all five episodes → debrief', async (page) => {
   await toEpisodeTwo(page);
 
   // Episode Two: flub, hold, retake — so the debrief has a pair to narrate.
@@ -117,7 +118,7 @@ await run('/', 'Full arc · all five episodes → debrief', async (page) => {
   // Episode Three: the envelopes.
   await page.waitForSelector('.rr-envelopes');
   const sealed = await page.locator('.rr-envelope').count();
-  check('Episode Three deals the strand-A envelopes', sealed === 3, `${sealed} sealed`);
+  check('Episode Three deals the strand-A envelopes (seed 0)', sealed === 3, `${sealed} sealed`);
   while (await page.locator('.rr-envelope').count()) {
     await page.locator('.rr-envelope').first().click();
   }
@@ -179,6 +180,21 @@ await run('/', 'Full arc · all five episodes → debrief', async (page) => {
   const retake = await page.textContent('.rr-retakes');
   check('it narrates the mistake and the correction',
     /reassured without evidence/.test(retake) && /owned the silence/.test(retake));
+
+  // The pooling moment: solo play has no other tables, so the close is where
+  // every card the session withheld is finally laid out.
+  const pooled = await page.locator('.rr-pool-list li').count();
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await page.waitForTimeout(120);
+  const openedCount = await page.evaluate(() => {
+    const raw = localStorage.getItem('relationship-room');
+    return raw ? JSON.parse(raw).cardsOpened.length : 0;
+  });
+  check('the close pools every card the session never dealt',
+    pooled > 0 && pooled + openedCount === 20, `${pooled} pooled + ${openedCount} seen`);
+  check('a card from an unseen strand is named at the close',
+    /Freeze Upstairs|Sponsor|Okafor|Engineer Who Decides|Praise You Never Claimed/
+      .test(await page.textContent('.rr-pool-list')));
 
   // Deliverable Nine: "four or five deliberate, narrated moves across the
   // whole Lab land far harder than twenty small ones."
@@ -369,6 +385,24 @@ await run('/', 'Wildcard · a coasting session gets complicated', async (page) =
     (await page.textContent('.rr-wildcard')).includes('The Rumour'));
   check('only one wildcard is ever dealt',
     (await page.locator('.rr-wildcard .rr-envelope').count()) === 0);
+});
+
+/* ---- 6. a different session is a different Lab ---- */
+await run('/?seed=2', 'Replay value · a fresh session deals a different strand', async (page) => {
+  await toEpisodeTwo(page);
+  await say(page, 'Understood.');
+  await say(page, 'Noted.');
+  await page.getByRole('button', { name: /Move on/ }).click();
+  await page.waitForSelector('.rr-envelopes');
+
+  while (await page.locator('.rr-envelopes .rr-envelope').count()) {
+    await page.locator('.rr-envelopes .rr-envelope').first().click();
+  }
+  const titles = await page.locator('.rr-envelopes .rr-card h4').allTextContents();
+  check('seed 2 deals strand C, not strand A', titles.length === 4, titles.join(' / '));
+  check('cards unreachable at seed 0 are reachable here',
+    titles.includes('The Freeze Upstairs') && titles.includes('The Teams Aren’t Ready'),
+    titles.join(' / '));
 });
 
 await browser.close();

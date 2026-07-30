@@ -46,7 +46,10 @@ function scriptedClient(userText) {
   return { speech: '[he waits, and lets the silence sit] Go on.', trust_delta: 0, pivot: '' };
 }
 
-const FAIL_EVERY = Number(new URLSearchParams(location.search).get('fail') || 0);
+const params = new URLSearchParams(location.search);
+const FAIL_EVERY = Number(params.get('fail') || 0);
+// Pin the strand / Episode Four deal so the walkthrough is deterministic.
+if (params.has('seed')) window.__rrSeed = Number(params.get('seed'));
 let calls = 0;
 
 window.fetch = async (_url, opts) => {

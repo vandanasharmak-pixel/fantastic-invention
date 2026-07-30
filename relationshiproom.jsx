@@ -17,6 +17,7 @@ import { askClient, askCoach } from "./src/core/api.js";
 import { reyesSystem, priyaSystem, coachSystem } from "./src/content/personas.js";
 import {
   CARDS, cardById, soloEpisodeThreeDraw, episodeFourDraw, selectWildcard,
+  strandForSeed, unseenAtClose,
 } from "./src/content/cards.js";
 
 /* ============================================================
@@ -164,6 +165,15 @@ function ClientChat({ persona, episode, state, dispatch, minTurns = 2, onDone })
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); },
     [messages, machine.hold?.coachNote]);
 
+  // Return the caret to the input whenever the participant is free to speak
+  // again. Skips the first run so it doesn't fight the episode heading for
+  // focus on mount.
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) { firstRun.current = false; return; }
+    if (inputEnabled(machine)) inputRef.current?.focus();
+  }, [machine.state]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const systemFor = useCallback(() => {
     const ctx = getSessionContext(state);
     return persona === "reyes" ? reyesSystem(ctx, episode) : priyaSystem(ctx);
@@ -216,7 +226,6 @@ function ClientChat({ persona, episode, state, dispatch, minTurns = 2, onDone })
 
     setTurns((t) => t + 1);
     setMachine((m) => replyReceived(m));
-    requestAnimationFrame(() => inputRef.current?.focus());
   }
 
   async function callHold() {
@@ -234,7 +243,6 @@ function ClientChat({ persona, episode, state, dispatch, minTurns = 2, onDone })
       `The trainee said: "${lastUser.text}"\nThe client replied: "${lastClient.text}"\nWhat the client registered: ${lastClient.pivot || "no clear pivot"}`,
     );
     setMachine((m) => coachReady(m, note));
-    requestAnimationFrame(() => inputRef.current?.focus());
   }
 
   const canHold = machine.state === CHAT_STATES.IDLE
@@ -485,7 +493,7 @@ function EpisodeOne({ state, dispatch, onDone }) {
 }
 
 function EpisodeThree({ state, dispatch, onDone }) {
-  const draw = useMemo(() => soloEpisodeThreeDraw(state.strand ?? "A"), [state.strand]);
+  const draw = useMemo(() => soloEpisodeThreeDraw(strandForSeed(state.seed)), [state.seed]);
   const [gotWrong, setGotWrong] = useState(state.worksheets.ep3?.gotWrong ?? "");
   const [choice, setChoice] = useState(state.worksheets.ep3?.choice ?? null);
   const [feedback, setFeedback] = useState(state.worksheets.ep3?.feedback ?? "");
@@ -569,7 +577,7 @@ function EpisodeThree({ state, dispatch, onDone }) {
 }
 
 function EpisodeFour({ state, dispatch, onDone }) {
-  const deal = useMemo(() => episodeFourDraw(2), []);
+  const deal = useMemo(() => episodeFourDraw(2, state.seed), [state.seed]);
   const [decision, setDecision] = useState(state.worksheets.ep4?.decision ?? null);
   const [committed, setCommitted] = useState(!!state.worksheets.ep4?.decision);
 
@@ -741,6 +749,23 @@ function Debrief({ state, dispatch }) {
         </section>
       )}
 
+      <section className="rr-pool">
+        <h2>What you never saw.</h2>
+        <p className="rr-lede">
+          You acted on a partial picture all the way through, because that is the
+          actual condition of client work. These are the cards this session held
+          back — someone at the next table had every one of them.
+        </p>
+        <ul className="rr-pool-list">
+          {unseenAtClose(state.cardsOpened).map((c) => (
+            <li key={c.id}>
+              <strong>{c.title}</strong>
+              <span>{c.whatThisChanges}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <h2>One commitment. Not ten.</h2>
       <p className="rr-lede">
         When you're next in a difficult conversation with a real client, what's the one thing you'll
@@ -770,7 +795,13 @@ const EPISODE_OF = { intro: 0, dossier: 0, ep1: 1, ep2: 2, ep3: 3, ep4: 4, ep5: 
 
 export default function App() {
   const [state, setState] = useState(() => ({
-    ...emptySave(), trust: TRUST_START, strand: "A", debrief: null,
+    ...emptySave(), trust: TRUST_START, debrief: null,
+    // Fixes the strand and the Episode Four deal for this session, so a
+    // reload resumes the same Lab but a fresh start is a different one.
+    // `window.__rrSeed` is a test seam so the walkthrough is deterministic.
+    seed: typeof window !== "undefined" && Number.isFinite(window.__rrSeed)
+      ? window.__rrSeed
+      : Math.floor(Math.random() * 1e6),
   }));
   const [resume, setResume] = useState(null);
   const [booted, setBooted] = useState(false);
@@ -1152,6 +1183,13 @@ main:focus{outline:none}
 .rr-resume-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .rr-resume-actions .rr-primary{margin-top:8px}
 
+.rr-pool{margin-top:28px;border-top:1px solid var(--rule);padding-top:6px}
+.rr-pool-list{list-style:none;margin:14px 0 0;padding:0;display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.rr-pool-list li{background:var(--paper-hi);border-left:2px solid var(--blue);padding:11px 13px}
+.rr-pool-list strong{display:block;font:600 15px/1.25 Newsreader,'Iowan Old Style',Georgia,serif;
+  margin-bottom:4px}
+.rr-pool-list span{font-size:13px;color:#4A5245}
 .rr-retakes{margin-top:26px;border-top:1px solid var(--rule);padding-top:8px}
 .rr-retake-pair{border-left:2px solid var(--blue);padding-left:14px;margin:14px 0}
 .rr-retake-pair p{margin:4px 0;font-size:14px}

@@ -22,14 +22,14 @@ src/core/storage.js         Versioned persistence + resume affordance
 src/core/sessionContext.js  The condensed brief every persona prompt receives
 src/content/cards.js        All 20 confidential cards, with the guide's routing
 src/content/personas.js     Reyes, Priya and the facilitator, per Deliverable Five
-test/core.test.js           40 tests
+test/core.test.js           44 tests
 scripts/trace-trust.js      Hand-traceable trust ledger
 ```
 
 ```sh
-npm test        # 40 unit tests
+npm test        # 44 unit tests
 npm run trace   # walk an Episode Two hold/replay by hand
-npm run verify  # drive the real app in a real browser — 52 checks
+npm run verify  # drive the real app in a real browser — 57 checks
 ```
 
 `npm run verify` bundles `dev/harness.jsx` (which stubs the Messages API with
@@ -108,6 +108,17 @@ spent the rest of the day earning it back"_ is the closing beat.
 
 **Card 19 is earned.** _"It only arrives if the team has been genuinely
 straight with him"_ — gated on trust reaching WARMING.
+
+**All twenty cards are reachable, and a replay is a different Lab.** A session
+draws a seed that fixes its Episode Three strand (A, B or C) and rotates the
+Episode Four pressure deal, so cards 4–10 and 14–16 aren't permanently
+unplayable. The seed persists, so a reload resumes the same Lab while a fresh
+start is a new one.
+
+**The close pools what you never saw.** _"The Grand Debrief, where the tables
+finally pool what they knew, lands with the force of a revelation rather than a
+summary."_ Solo play has no other tables, so the debrief lays out every card the
+session withheld — the seven-or-so you held plus the thirteen you didn't.
 
 **Wildcards are played as a facilitator would.** Cards 17–20 are held in
 reserve: if trust has been static across two episodes the session deals _The

@@ -14,7 +14,8 @@ import {
 
 import { parseJSONish, normaliseClientReply, extractFirstObject } from '../src/core/parse.js';
 import { validateSave, emptySave, hasResumableProgress, createPersistence, SCHEMA_VERSION } from '../src/core/storage.js';
-import { CARDS, cardsForEpisode, wildcards, soloEpisodeThreeDraw, cardById, selectWildcard } from '../src/content/cards.js';
+import { CARDS, cardsForEpisode, wildcards, soloEpisodeThreeDraw, cardById, selectWildcard,
+  strandForSeed, episodeFourDraw, unseenAtClose } from '../src/content/cards.js';
 import { getSessionContext } from '../src/core/sessionContext.js';
 import { repairClientReply } from '../src/core/consistency.js';
 
@@ -444,4 +445,43 @@ test('superseded events do not count toward movement', () => {
     trustEvents: [{ episode: 4, delta: -12, superseded: true }],
   });
   assert.equal(card.id, 18, 'still reads as coasting');
+});
+
+// -------------------------------------------- reachability of all 20 cards --
+
+test('every strand is reachable across sessions', () => {
+  const reached = new Set(
+    Array.from({ length: 30 }, (_, seed) => strandForSeed(seed)),
+  );
+  assert.deepEqual([...reached].sort(), ['A', 'B', 'C']);
+});
+
+test('the Episode Four deal rotates so no pressure card is unplayable', () => {
+  const dealt = new Set();
+  for (let seed = 0; seed < 12; seed++) {
+    for (const c of episodeFourDraw(2, seed).dealt) dealt.add(c.id);
+  }
+  assert.deepEqual([...dealt].sort((a, b) => a - b), [12, 13, 14, 15, 16],
+    'all five single-table pressure cards can be dealt');
+});
+
+test('every one of the twenty cards is reachable by some session', () => {
+  const reachable = new Set();
+  for (let seed = 0; seed < 12; seed++) {
+    for (const c of soloEpisodeThreeDraw(strandForSeed(seed)).held) reachable.add(c.id);
+    const d = episodeFourDraw(2, seed);
+    for (const c of [...d.always, ...d.dealt]) reachable.add(c.id);
+  }
+  for (const c of wildcards()) reachable.add(c.id);
+  assert.equal(reachable.size, 20, `only ${reachable.size} of 20 reachable`);
+});
+
+test('the close pools every card the session withheld', () => {
+  // Deliverable Four: the debrief is where "the tables finally pool what they
+  // knew" — solo play has no other tables, so the close does it.
+  const opened = [1, 2, 3, 11, 12, 13];
+  const unseen = unseenAtClose(opened);
+  assert.equal(unseen.length, 20 - opened.length);
+  assert.ok(unseen.every((c) => !opened.includes(c.id)));
+  assert.ok(unseen.some((c) => c.id === 7), 'The Freeze Upstairs is revealed at the close');
 });
