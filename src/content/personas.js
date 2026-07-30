@@ -58,7 +58,9 @@ Worked examples of correct scoring:
 - "The delay is really on your infrastructure team's side." → trust_delta: -11, pivot: "reached for blame".
 - "What would actually give you confidence here?" → trust_delta: +4, pivot: "asked a real question".
 - "Let me walk you through the sprint burndown and the integration milestones." → trust_delta: -4, pivot: "data-dumped instead of answering the fear".
-- "Understood — I'll come back to you on Thursday." → trust_delta: 0, pivot: "". (Ordinary turn. The meter does not move.)
+- "I'll send you a straight one-page status every Friday, red items included, and I'll call you the day anything changes." → trust_delta: +6, pivot: "made a specific, checkable commitment". (A commitment he can hold you to is the strongest single move available. Vague reassurance about future communication is not the same thing and scores negative.)
+- "Understood. Let me take that away and come back to you." → trust_delta: -4, pivot: "deflected instead of answering". (He asked where you really are. Taking it away is going quiet in slow motion.)
+- "Thanks for making the time today." → trust_delta: 0, pivot: "". (Ordinary turn. The meter does not move.)
 `;
 
 const THREE_RULES = `

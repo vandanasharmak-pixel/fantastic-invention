@@ -64,11 +64,23 @@ and a test asserts it.
 
 ### Drift, measured
 
-`npm run probe` runs 15 trainee lines whose correct scoring the guide states
-outright through the live Reyes prompt. Measured on `claude-opus-5`: **13/15
-correct, and zero cases of reassurance scored positive** — the failure
-`consistency.js` exists to catch did not occur. The guard is cheap, deterministic
-and tested, so it stays as insurance, but the prompt is carrying the weight.
+`npm run probe` runs 17 trainee lines whose correct scoring the guide states
+outright through the live Reyes prompt. Measured on `claude-opus-5`: **17/17,
+zero drift** — and in particular zero cases of reassurance scored positive, the
+failure `consistency.js` exists to catch. The guard has never fired against the
+live model. It is cheap, deterministic and tested, so it stays as insurance,
+but the schema and the worked examples are carrying the weight.
+
+Getting there took two fixes, one to the prompt and one to the instrument:
+
+- The model scored *"I'll send you a straight one-page status every Friday"* at
+  0, when Deliverable Five singles that exact move out as earning "the warmest
+  close". The worked examples had no case for a specific commitment; adding one
+  fixed it.
+- Two apparent misses were the probe's fault. Measured against Reyes's opening
+  demand — *"tell me where we really are"* — **every** non-answer is a
+  deflection and correctly scores negative, so a neutral turn is untestable in
+  that context. Cases now carry their own preceding client line.
 
 `npm run verify:standalone` opens the built file from a real `file://` origin
 and plays the rehearsal through Hold and Replay — including a check that

@@ -29,7 +29,16 @@ if (!KEY) {
  *   'negative' — Deliverable Nine lists this under "Trust FALLS when the team…"
  *   'positive' — listed under "Trust RISES when the team…"
  *   'zero'     — an ordinary turn; the meter should not move
+ *
+ * `context` is the client line the trainee is answering. It matters more than
+ * it looks: measured against Reyes's opening demand ("tell me where we really
+ * are"), *every* non-answer is a deflection and correctly scores negative —
+ * so a neutral case can only be tested where nothing is being asked. Two
+ * earlier "misses" turned out to be this flaw in the instrument rather than
+ * drift in the model.
  */
+const ASKED = "Thanks for coming in. I'll be honest — I almost didn't ask for this meeting. But something's not sitting right with me on the Atlas launch. So. Tell me where we really are.";
+const NOTHING_ASKED = "Alright. I've got a hard stop in ten, so let's keep this tight.";
 const CASES = [
   { said: "We're tracking well against the plan — I'm confident we'll hit the Atlas date.", expect: 'negative', why: 'reassures without evidence' },
   { said: "Don't worry, everything's under control on our side.", expect: 'negative', why: 'reassures without evidence' },
@@ -46,8 +55,10 @@ const CASES = [
   { said: "I think what you're actually asking is not to be surprised in front of the board again.", expect: 'positive', why: 'names his interest' },
   { said: "I'll send you a straight one-page status every Friday, red items included, and call you the day anything changes.", expect: 'positive', why: 'specific, checkable commitment' },
 
-  { said: "Understood. Let me take that away and come back to you.", expect: 'zero', why: 'ordinary turn' },
-  { said: "Thanks for making the time today.", expect: 'zero', why: 'ordinary turn' },
+  { said: "Understood. Let me take that away and come back to you.", expect: 'negative', why: 'deflects the question' },
+  { said: "Thanks for making the time today.", expect: 'zero', why: 'ordinary turn', context: NOTHING_ASKED },
+  { said: "Right — noted.", expect: 'zero', why: 'ordinary turn', context: NOTHING_ASKED },
+  { said: "Understood.", expect: 'zero', why: 'ordinary turn', context: NOTHING_ASKED },
 ];
 
 const ctx = getSessionContext({
@@ -57,7 +68,7 @@ const system = reyesSystem(ctx, 2);
 
 const sign = (d) => (d > 0 ? 'positive' : d < 0 ? 'negative' : 'zero');
 
-async function ask(said) {
+async function ask(said, context = ASKED) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -70,7 +81,7 @@ async function ask(said) {
       max_tokens: 2000,
       system,
       messages: [{ role: 'user', content:
-        `Conversation so far:\nClient: Thanks for coming in. I'll be honest — I almost didn't ask for this meeting. But something's not sitting right with me on the Atlas launch. So. Tell me where we really are.\n\nTrainee: ${said}` }],
+        `Conversation so far:\nClient: ${context}\n\nTrainee: ${said}` }],
       output_config: { effort: 'low', format: { type: 'json_schema', schema: CLIENT_REPLY_SCHEMA } },
     }),
   });
@@ -89,7 +100,7 @@ const misses = [];
 
 for (const c of CASES) {
   let reply;
-  try { reply = await ask(c.said); }
+  try { reply = await ask(c.said, c.context); }
   catch (e) { console.log(`  ⚠ ${c.why} — ${e.message}`); failed++; continue; }
 
   const got = sign(reply.trust_delta);
