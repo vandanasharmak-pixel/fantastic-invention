@@ -3,6 +3,10 @@ package-lock.json
 dev/bundle.js
 dev/shot-*.png
 dev/artifact-wrapped.html
+dev/react-globals.js
+
+# Supplied by the Claude Design project, not by this repo.
+dc/support.js
 
 # Contains a real API key — never commit.
 relationship-room-personal.html

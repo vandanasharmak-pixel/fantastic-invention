@@ -34,6 +34,34 @@ npm run verify  # drive the real app in a real browser — 57 checks
 npm run verify:standalone   # build it, then play it straight off disk
 ```
 
+## Back into Claude Design (.dc.html)
+
+`npm run build:dc` produces `dc/relationship-room.dc.js` and the `.dc.html`
+that x-imports it — the format the brief originally named.
+
+Two constraints shape that build, both discovered by reading `support.js`:
+
+- It evals an imported module as `new Function("React", "module", "exports",
+  "require", code)` with `require` returning `{}`, so the module **cannot have
+  imports**. It has to be pre-bundled, and it exports through `module.exports`.
+- `React` is a free variable in that scope, which is the only correct place to
+  get it from. Bundling our own copy would put two Reacts on the page and every
+  hook would throw *Invalid hook call*, because the runtime's ReactDOM renders
+  the component. `src/dc-react-shim.js` aliases `react` to the injected one, and
+  the build uses classic JSX so nothing pulls in `react/jsx-runtime`.
+
+This is the only one of the three builds where the **live personas work without
+a key**: the Design host proxies `/v1/messages`, which is why the original
+prototype could call it unauthenticated.
+
+`npm run verify:dc` boots the real `.dc.html` through the real `support.js`,
+with React injected from `node_modules` because this environment's egress policy
+blocks unpkg. It asserts the component mounts, renders the intro rather than a
+placeholder, and — the check that matters — that no *Invalid hook call* is
+raised.
+
+`dc/support.js` is not committed; it belongs to the Design project.
+
 ## The shared artifact
 
 `npm run build:artifact` emits `artifact/relationship-room.html` — page content
