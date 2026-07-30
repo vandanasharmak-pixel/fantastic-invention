@@ -36,8 +36,16 @@ npm run verify:standalone   # build it, then play it straight off disk
 
 ## The downloadable build
 
-`npm run build` produces **`relationship-room.html`** — 290 KB, everything
-inlined, no server and no build step at the other end. Double-click it.
+`npm run build` produces **`relationship-room.html`** — 630 KB, everything
+inlined including the webfonts, no server and no build step at the other end.
+Double-click it. It makes no network request at all except the ones you make by
+talking to a client, and a test blocks the network entirely to prove the real
+typography still renders rather than quietly falling back to Georgia.
+
+`npm run build -- --lean` fetches the fonts over the wire instead — 292 KB, but
+it needs a connection to look right. `node scripts/fetch-fonts.mjs` refreshes
+the inlined faces (latin subset only; the other twelve subsets Google serves
+would roughly triple the weight for glyphs this Lab never renders).
 
 It asks how to talk to a client **once**. After that, every run opens straight
 into the account file — the key is kept in `localStorage`, and there's a

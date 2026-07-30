@@ -981,7 +981,8 @@ export default function App() {
 
 /* ---------------- CSS — Registry room, Chart Recorder gauge ---------------- */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=Archivo:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap');
+/* Fonts are supplied by the host page — inlined in the downloadable build,
+   linked in the dev harness. Every stack below falls back to a system face. */
 
 .rr-app{--ink:#12181D;--slate:#1E262E;--edge:#263039;--paper:#D7D9CF;--paper-hi:#EDEEE7;
   --green:#202722;--ox:#6E2A2E;--ox-lit:#C4736F;--blue:#2F3E6B;--mute:#7C8B98;--rule:#9BA292;

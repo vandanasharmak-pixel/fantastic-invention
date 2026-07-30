@@ -9,6 +9,7 @@
 
 import { build } from 'esbuild';
 import { writeFile, stat } from 'node:fs/promises';
+import { FONT_CSS } from '../src/generated/fonts.js';
 
 /**
  * `npm run build` produces the shareable file: no key, gate on open.
@@ -18,6 +19,9 @@ import { writeFile, stat } from 'node:fs/promises';
  * shared — anyone holding it holds the key.
  */
 const PERSONAL = process.argv.includes('--personal');
+// Inlined by default: a file you download should not need the network to look
+// right. --lean drops ~350 KB of base64 and falls back to system faces.
+const LEAN = process.argv.includes('--lean');
 const KEY = PERSONAL ? process.env.ANTHROPIC_API_KEY : null;
 
 if (PERSONAL && !KEY) {
@@ -59,6 +63,7 @@ const html = `<!doctype html>
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="%2312181D"/><circle cx="16" cy="16" r="9" fill="none" stroke="%23C7C1B0" stroke-width="2"/><path d="M16 16 L16 8" stroke="%23C0453A" stroke-width="2"/></svg>',
 )}">
 <style>
+${LEAN ? '@import url(\'https://fonts.googleapis.com/css2?family=Newsreader:wght@400;600&family=Archivo:wght@400;600;700&family=Courier+Prime:wght@400;700&display=swap\');' : FONT_CSS}
   html,body{margin:0;height:100%;background:#12181D;color:#D7D9CF}
   #root{min-height:100%}
   /* Shown only if the bundle fails to run at all. */
@@ -79,7 +84,7 @@ const html = `<!doctype html>
 
 await writeFile(OUT, html, 'utf8');
 const { size } = await stat(OUT);
-console.log(`${OUT} — ${(size / 1024).toFixed(0)} KB, self-contained`);
+console.log(`${OUT} — ${(size / 1024).toFixed(0)} KB, ${LEAN ? 'fonts over the network' : 'self-contained incl. fonts'}`);
 if (PERSONAL) {
   console.log('  ⚠ contains your API key. Gitignored. Do not share this copy.');
 }

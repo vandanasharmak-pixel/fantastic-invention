@@ -85,6 +85,36 @@ check('localStorage works on file:// (progress is saved)',
 
 await page.screenshot({ path: 'dev/shot-standalone.png' });
 
+// Truly offline: block everything but the file, and confirm the real faces
+// still render rather than silently falling back to a system serif.
+const offline = await browser.newPage();
+const blocked = [];
+await offline.route('**/*', (route) => {
+  const u = route.request().url();
+  if (u.startsWith('file://') || u.startsWith('data:')) return route.continue();
+  blocked.push(u);
+  return route.abort();
+});
+await offline.goto(FILE);
+await offline.waitForSelector('.rr-gate');
+await offline.evaluate(() => document.fonts.ready);
+const typo = await offline.evaluate(() => {
+  const probe = document.createElement('span');
+  probe.textContent = 'Reyes';
+  probe.style.cssText = 'position:absolute;font-size:80px;font-family:Newsreader';
+  document.body.appendChild(probe);
+  const real = probe.getBoundingClientRect().width;
+  probe.style.fontFamily = 'Georgia';
+  const fallback = probe.getBoundingClientRect().width;
+  probe.remove();
+  return { faces: [...document.fonts].filter((f) => f.status === 'loaded').length, real, fallback };
+});
+check('nothing is fetched from the network', blocked.length === 0, `${blocked.length} blocked`);
+check('the real typography renders with no network at all',
+  typo.faces > 0 && Math.abs(typo.real - typo.fallback) > 1,
+  `${typo.faces} faces, ${typo.real.toFixed(0)}px vs ${typo.fallback.toFixed(0)}px fallback`);
+await offline.close();
+
 const real = errors.filter((e) => !/fonts\.googleapis|fonts\.gstatic|ERR_|favicon/.test(e));
 check('no runtime errors and no unexpected network calls', real.length === 0,
   real.slice(0, 3).join(' | '));
