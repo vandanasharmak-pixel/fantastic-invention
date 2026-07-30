@@ -1,0 +1,11 @@
+{
+  "name": "relationship-room",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Solo, AI-powered version of The Relationship Room — a five-episode simulation in protecting a strategic client relationship.",
+  "scripts": {
+    "test": "node --test 'test/*.test.js'",
+    "trace": "node scripts/trace-trust.js"
+  }
+}
