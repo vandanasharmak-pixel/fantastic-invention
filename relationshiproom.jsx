@@ -13,7 +13,7 @@ import {
   createPersistence, emptySave, hasResumableProgress, resumeLabel,
 } from "./src/core/storage.js";
 import { getSessionContext } from "./src/core/sessionContext.js";
-import { askClient, askCoach } from "./src/core/api.js";
+import { askClient, askCoach, apiMode } from "./src/core/api.js";
 import { reyesSystem, priyaSystem, coachSystem } from "./src/content/personas.js";
 import {
   CARDS, cardById, soloEpisodeThreeDraw, episodeFourDraw, selectWildcard,
@@ -374,6 +374,15 @@ function Intro({ onStart, resume, onResume, onDiscard }) {
         Nothing here is graded. Being clumsy is completely fine — it's the point. The only way to
         do this badly is to play it safe.
       </p>
+
+      {apiMode() === "rehearsal" && (
+        <p className="rr-mode">
+          <span>REHEARSAL</span>
+          Reyes and Priya are following the facilitator guide's branch table — they react to
+          reassurance, blame, ownership and real questions, but they don't improvise. Nothing
+          you type leaves this page.
+        </p>
+      )}
 
       {resume && (
         <div className="rr-resume">
@@ -1183,6 +1192,10 @@ main:focus{outline:none}
 .rr-needs p{font:400 14px/1.65 Newsreader,'Iowan Old Style',Georgia,serif;color:#B9C3CB;margin:9px 0 0;max-width:none}
 .rr-sealed{font:400 9px/1.5 'Courier Prime',ui-monospace,'Courier New',monospace!important;letter-spacing:.1em;color:#5C6873!important}
 
+.rr-mode{border:1px solid var(--rule);border-left:3px solid var(--blue);
+  padding:12px 15px;margin:18px 0;font-size:13.5px;color:#4A5245}
+.rr-mode span{display:block;font:700 9px/1 'Courier Prime',ui-monospace,monospace;
+  letter-spacing:.18em;color:var(--blue);margin-bottom:5px}
 .rr-resume{background:var(--paper-hi);border:2px solid var(--blue);padding:16px 18px;margin:22px 0}
 .rr-resume-head{font:700 9.5px/1 'Courier Prime',ui-monospace,'Courier New',monospace;letter-spacing:.16em;color:var(--blue);margin:0 0 8px}
 .rr-resume-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}

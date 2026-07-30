@@ -34,6 +34,23 @@ npm run verify  # drive the real app in a real browser — 57 checks
 npm run verify:standalone   # build it, then play it straight off disk
 ```
 
+## The shared artifact
+
+`npm run build:artifact` emits `artifact/relationship-room.html` — page content
+only, since the publish step supplies its own document skeleton.
+
+**It is rehearsal-only, and that is a platform limit rather than a shortcut.** A
+claude.ai artifact runs under a CSP that blocks every outbound request, and the
+only runtime capabilities available are `downloads` and `mcp` — neither reaches
+the Messages API. So the AI-played personas cannot run there at all. Rather than
+ship a key field that could never work, this build commits to the branch table
+and says so on the intro screen. Everything else is the same code: the Trust
+Meter, Hold and Replay, all twenty cards, the Grand Debrief.
+
+The Registry room is a deliberate single-theme world, so the page paints its own
+ink-slate ground rather than inheriting the viewer's — a light-theme viewer gets
+the same war room, verified by test, not a half-inverted version of it.
+
 ## The downloadable build
 
 `npm run build` produces **`relationship-room.html`** — 630 KB, everything

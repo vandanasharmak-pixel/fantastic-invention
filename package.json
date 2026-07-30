@@ -12,7 +12,8 @@
     "build": "node scripts/build-standalone.mjs",
     "verify:standalone": "npm run build && node dev/check-standalone.mjs && node dev/check-seamless.mjs",
     "build:personal": "node scripts/build-standalone.mjs --personal",
-    "probe": "node scripts/drift-probe.mjs"
+    "probe": "node scripts/drift-probe.mjs",
+    "build:artifact": "node scripts/build-artifact.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",
