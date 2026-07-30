@@ -362,3 +362,37 @@ export function episodeFourDraw(count = 2) {
   const pool = CARDS.filter((c) => c.episode === 4 && c.table === 'ONE');
   return { always, dealt: pool.slice(0, count), pool };
 }
+
+const ZONE_ORDER = ['BROKEN', 'GUARDED', 'NEUTRAL', 'WARMING', 'TRUSTED'];
+
+/**
+ * The facilitator's wildcard, played as Deliverable Four describes it: "to
+ * reward a table that is doing well (a positive card), to complicate a table
+ * that is coasting (a risk card)".
+ *
+ * Solo adaptation: a table that is coasting shows up as a Trust Meter that has
+ * barely moved across two episodes. Note that *no movement at all* is the
+ * strongest coasting signal, not a reason to sit on your hands.
+ *
+ * @param {{episode:number, zoneId:string, trustEvents:Array, cardsOpened:number[]}} s
+ * @returns {object|null} the card to play, or null to hold
+ */
+export function selectWildcard({ episode, zoneId, trustEvents = [], cardsOpened = [] }) {
+  // The wildcards belong to the back half, and only one is ever played.
+  if (episode < 3 || episode > 5) return null;
+  if (cardsOpened.some((id) => id >= 17)) return null;
+
+  const recent = trustEvents.filter((e) => !e.superseded && e.episode >= episode - 1);
+  const movement = recent.reduce((total, e) => total + Math.abs(e.delta), 0);
+
+  // Coasting — the needle has barely moved in two episodes. Complicate it.
+  if (movement <= 4) return cardById(18);
+
+  // Earned — a lot has moved and it moved the right way. Reward it.
+  const reward = cardById(19);
+  const floor = ZONE_ORDER.indexOf(reward.requiresTrustAtLeast);
+  if (ZONE_ORDER.indexOf(zoneId) >= floor) return reward;
+
+  // Working hard and losing anyway. Do not pile on.
+  return null;
+}

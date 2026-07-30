@@ -22,14 +22,14 @@ src/core/storage.js         Versioned persistence + resume affordance
 src/core/sessionContext.js  The condensed brief every persona prompt receives
 src/content/cards.js        All 20 confidential cards, with the guide's routing
 src/content/personas.js     Reyes, Priya and the facilitator, per Deliverable Five
-test/core.test.js           33 tests
+test/core.test.js           40 tests
 scripts/trace-trust.js      Hand-traceable trust ledger
 ```
 
 ```sh
-npm test        # 33 unit tests
+npm test        # 40 unit tests
 npm run trace   # walk an Episode Two hold/replay by hand
-npm run verify  # drive the real app in a real browser — 36 checks
+npm run verify  # drive the real app in a real browser — 52 checks
 ```
 
 `npm run verify` bundles `dev/harness.jsx` (which stubs the Messages API with
@@ -39,7 +39,11 @@ struck rather than deleted and that trust lands on the pre-Hold baseline. It
 also runs the flow with the API failing every call, reloads mid-session to check
 resume, measures the layout at 390px, and walks the whole arc — envelopes, the
 escalation to Priya, the recovery conversation, the Grand Debrief — asserting
-the meter stayed scarce throughout. Screenshots land in `dev/`.
+the meter stayed scarce throughout. A separate pass drives the entire flow on
+the keyboard alone — skip link, tab order, visible focus, the heading taking
+focus on each episode, Enter-to-send, and envelopes opening from the keyboard —
+and one more coasts deliberately to confirm the facilitator deals a wildcard.
+Screenshots land in `dev/`.
 
 ## Persona-drift guard
 

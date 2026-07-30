@@ -14,7 +14,7 @@ import {
 
 import { parseJSONish, normaliseClientReply, extractFirstObject } from '../src/core/parse.js';
 import { validateSave, emptySave, hasResumableProgress, createPersistence, SCHEMA_VERSION } from '../src/core/storage.js';
-import { CARDS, cardsForEpisode, wildcards, soloEpisodeThreeDraw, cardById } from '../src/content/cards.js';
+import { CARDS, cardsForEpisode, wildcards, soloEpisodeThreeDraw, cardById, selectWildcard } from '../src/content/cards.js';
 import { getSessionContext } from '../src/core/sessionContext.js';
 import { repairClientReply } from '../src/core/consistency.js';
 
@@ -389,4 +389,59 @@ test('ordinary honest moves pass through untouched', () => {
     { speech: '…', trust_delta: 6, pivot: 'owned the silence' });
   assert.equal(r.trust_delta, 6);
   assert.equal(r.repaired, null);
+});
+
+// ------------------------------------------------------------ wildcards ----
+
+const ev = (episode, delta) => ({ episode, delta, superseded: false });
+
+test('wildcards are held outside the back half of the Lab', () => {
+  for (const episode of [0, 1, 2, 6]) {
+    assert.equal(selectWildcard({ episode, zoneId: 'NEUTRAL', trustEvents: [] }), null);
+  }
+});
+
+test('a coasting session gets complicated', () => {
+  // "to complicate a table that is coasting (a risk card)"
+  const card = selectWildcard({ episode: 4, zoneId: 'NEUTRAL', trustEvents: [ev(3, 2)] });
+  assert.equal(card.id, 18, 'The Rumour');
+  assert.equal(card.wildcardMode, 'complicate');
+});
+
+test('a needle that has not moved at all is the strongest coasting signal', () => {
+  // The obvious bug here is to treat "no events" as "nothing to react to".
+  const card = selectWildcard({ episode: 3, zoneId: 'NEUTRAL', trustEvents: [] });
+  assert.equal(card.id, 18);
+});
+
+test('an earned session gets rewarded, not complicated', () => {
+  const card = selectWildcard({
+    episode: 5, zoneId: 'WARMING', trustEvents: [ev(4, 6), ev(5, 5)],
+  });
+  assert.equal(card.id, 19, 'A Message From Reyes');
+  assert.equal(card.wildcardMode, 'reward');
+});
+
+test('the reward is withheld below the zone the card itself requires', () => {
+  // Card 19: "it only arrives if the team has been genuinely straight with him"
+  const card = selectWildcard({
+    episode: 5, zoneId: 'GUARDED', trustEvents: [ev(4, -14), ev(5, -9)],
+  });
+  assert.equal(card, null, 'working hard and losing anyway — do not pile on');
+});
+
+test('only one wildcard is ever played', () => {
+  assert.equal(
+    selectWildcard({ episode: 5, zoneId: 'NEUTRAL', trustEvents: [], cardsOpened: [1, 18] }),
+    null,
+  );
+});
+
+test('superseded events do not count toward movement', () => {
+  // A replayed mistake was undone; it is not evidence the session is engaged.
+  const card = selectWildcard({
+    episode: 4, zoneId: 'NEUTRAL',
+    trustEvents: [{ episode: 4, delta: -12, superseded: true }],
+  });
+  assert.equal(card.id, 18, 'still reads as coasting');
 });

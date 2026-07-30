@@ -37,8 +37,6 @@ export function createChatMachine() {
 /** Input is frozen unless the participant is genuinely free to speak. */
 export const inputEnabled = (m) => m.state === IDLE || m.state === REPLAYING;
 
-export const isBusy = (m) => m.state === AWAITING_REPLY;
-
 class InvalidTransition extends Error {
   constructor(from, action) {
     super(`Invalid chat transition: cannot "${action}" from "${from}"`);

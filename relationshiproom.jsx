@@ -2,21 +2,21 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 
 import {
   TRUST_START, ZONES, zoneFor,
-  createTrustState, applyTrustEvent, supersedeTrustEvent, nextTrustEventId,
+  applyTrustEvent, supersedeTrustEvent, nextTrustEventId,
   activeEvents, replayPairs,
 } from "./src/core/trust.js";
 import {
   CHAT_STATES, createChatMachine, submit, replyReceived,
-  hold, coachReady, cancelHold, submitReplay, inputEnabled,
+  hold, coachReady, cancelHold, inputEnabled,
 } from "./src/core/chatMachine.js";
 import {
-  createPersistence, validateSave, emptySave, hasResumableProgress, resumeLabel,
+  createPersistence, emptySave, hasResumableProgress, resumeLabel,
 } from "./src/core/storage.js";
 import { getSessionContext } from "./src/core/sessionContext.js";
 import { askClient, askCoach } from "./src/core/api.js";
 import { reyesSystem, priyaSystem, coachSystem } from "./src/content/personas.js";
 import {
-  CARDS, cardById, soloEpisodeThreeDraw, episodeFourDraw, wildcards,
+  CARDS, cardById, soloEpisodeThreeDraw, episodeFourDraw, selectWildcard,
 } from "./src/content/cards.js";
 
 /* ============================================================
@@ -851,23 +851,17 @@ export default function App() {
 
   const go = (screen) => dispatch({ type: "screen", value: screen });
 
-  /**
-   * The facilitator's wildcard. "When you need to change the temperature of one
-   * table without touching the others." In solo play: if trust has been static
-   * across two episodes, complicate it; if it's climbing, reward it.
-   */
-  const wildcard = useMemo(() => {
-    const ep = EPISODE_OF[state.screen] ?? 0;
-    if (ep < 3 || ep > 5) return null;
-    const recent = activeEvents({ events: state.trustEvents }).filter((e) => e.episode >= ep - 1);
-    if (recent.length === 0 || state.cardsOpened.some((id) => id >= 17)) return null;
-    const movement = recent.reduce((a, e) => a + Math.abs(e.delta), 0);
-    if (movement > 4) {
-      return zoneFor(state.trust).id === "WARMING" || zoneFor(state.trust).id === "TRUSTED"
-        ? cardById(19) : null;
-    }
-    return cardById(18);
-  }, [state.screen, state.trustEvents, state.cardsOpened, state.trust]);
+  // The facilitator's wildcard — see selectWildcard for the rule. Once one has
+  // been played it stays on screen to be read; selectWildcard stops proposing
+  // new ones, so without this the card would vanish the instant it was opened.
+  const playedWildcard = state.cardsOpened.find((id) => id >= 17) ?? null;
+  const proposed = useMemo(() => selectWildcard({
+    episode: EPISODE_OF[state.screen] ?? 0,
+    zoneId: zoneFor(state.trust).id,
+    trustEvents: state.trustEvents,
+    cardsOpened: state.cardsOpened,
+  }), [state.screen, state.trust, state.trustEvents, state.cardsOpened]);
+  const wildcard = playedWildcard ? cardById(playedWildcard) : proposed;
 
   if (!booted) return null;
 
@@ -918,10 +912,10 @@ export default function App() {
           {state.screen === "ep5" && <EpisodeFive state={state} dispatch={dispatch} onDone={() => go("debrief")} />}
           {state.screen === "debrief" && <Debrief state={state} dispatch={dispatch} />}
 
-          {wildcard && !state.cardsOpened.includes(wildcard.id) && (
+          {wildcard && (
             <aside className="rr-wildcard">
               <p className="rr-wildcard-tag">THE FACILITATOR PLAYS A CARD</p>
-              <Envelope card={wildcard} opened={false}
+              <Envelope card={wildcard} opened={state.cardsOpened.includes(wildcard.id)}
                 onOpen={() => dispatch({ type: "openCard", id: wildcard.id })} />
             </aside>
           )}

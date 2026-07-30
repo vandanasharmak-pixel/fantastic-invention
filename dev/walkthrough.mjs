@@ -232,6 +232,84 @@ await run('/', 'Persistence · resume where you left off', async (page) => {
   check('trust survives the reload exactly', after === before, `${before} → ${after}`);
 });
 
+/* ---- 3b. keyboard only, no mouse ---- */
+await run('/', 'Accessibility · the whole flow on the keyboard', async (page) => {
+  const active = () => page.evaluate(() => {
+    const el = document.activeElement;
+    return { tag: el?.tagName, text: (el?.textContent ?? '').trim().slice(0, 40), id: el?.id };
+  });
+
+  // The skip link must be the first thing Tab reaches.
+  await page.keyboard.press('Tab');
+  check('skip link is the first tab stop', (await active()).text.startsWith('Skip to'));
+
+  // Reach and activate the start button with the keyboard alone.
+  for (let i = 0; i < 8; i++) {
+    if ((await active()).text.includes('Open the account file')) break;
+    await page.keyboard.press('Tab');
+  }
+  check('the start button is reachable by Tab', (await active()).text.includes('Open the account file'));
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.rr-email');
+
+  // Focus must be visible, not suppressed by a reset.
+  const outline = await page.evaluate(() => {
+    const b = document.querySelector('.rr-primary');
+    b.focus();
+    const s = getComputedStyle(b);
+    return { w: s.outlineWidth, style: s.outlineStyle };
+  });
+  check('focus is visibly outlined', outline.style !== 'none' && parseFloat(outline.w) > 0,
+    `${outline.style} ${outline.w}`);
+
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('#rr-fact');
+
+  // Episode heading takes focus on transition, so a screen reader lands on it.
+  check('the new episode heading receives focus', (await active()).tag === 'H1', (await active()).text);
+
+  await page.fill('#rr-fact', 'a'); await page.fill('#rr-story', 'b');
+  await page.getByRole('button', { name: 'Compare' }).click();
+  await page.getByRole('button', { name: /He's agreed to meet/ }).click();
+  await page.waitForSelector('#rr-reply');
+
+  // The transcript must announce new lines without stealing focus.
+  const log = await page.evaluate(() => {
+    const el = document.querySelector('.rr-transcript');
+    return { role: el.getAttribute('role'), live: el.getAttribute('aria-live'),
+      label: el.getAttribute('aria-label') };
+  });
+  check('transcript is a labelled live region',
+    log.role === 'log' && log.live === 'polite' && !!log.label);
+
+  // Send a line using only the keyboard.
+  await page.focus('#rr-reply');
+  await page.keyboard.type("You're right that we've gone quiet, and that's on us.");
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => !document.querySelector('.rr-waiting'), null, { timeout: 8000 });
+  check('Enter submits the reply without reaching for the mouse',
+    (await page.locator('.rr-turn-client').count()) >= 1);
+  check('focus returns to the input after the client answers',
+    (await active()).id === 'rr-reply');
+
+  const meterLabel = await page.getAttribute('.rr-meter', 'aria-label');
+  check('the meter announces its zone in words, not a number',
+    /Guarded|Neutral|Warming|Trusted|Broken/.test(meterLabel) && !/\d/.test(meterLabel),
+    meterLabel);
+
+  // Envelopes must be real buttons, not click-only divs.
+  await say(page, 'What would rebuild your confidence from here?'); // reach minTurns
+  await page.getByRole('button', { name: /Move on/ }).click();
+  await page.waitForSelector('.rr-envelope');
+  const envRole = await page.evaluate(() =>
+    document.querySelector('.rr-envelope').tagName);
+  check('envelopes are buttons', envRole === 'BUTTON');
+  await page.focus('.rr-envelope');
+  await page.keyboard.press('Enter');
+  check('an envelope opens from the keyboard',
+    (await page.locator('.rr-card').count()) === 1);
+});
+
 /* ---- 4. mobile ---- */
 await run('/', 'Mobile · single-column fallback', async (page) => {
   const overflowNow = () => page.evaluate(() =>
@@ -269,6 +347,28 @@ await run('/', 'Mobile · single-column fallback', async (page) => {
       const main = document.querySelector('#rr-main')?.getBoundingClientRect();
       return !!rail && !!main && rail.top < main.top;
     }));
+});
+
+/* ---- 5. the facilitator plays a wildcard at a coasting session ---- */
+await run('/', 'Wildcard · a coasting session gets complicated', async (page) => {
+  await toEpisodeTwo(page);
+  // Deliberately bland turns: the harness scores these 0, so the needle never
+  // moves — exactly the table the guide says to complicate.
+  await say(page, 'Understood. Let me take that away.');
+  await say(page, 'Noted, thank you.');
+  await page.getByRole('button', { name: /Move on/ }).click();
+  await page.waitForSelector('.rr-envelopes');
+
+  const wild = await page.locator('.rr-wildcard').count();
+  check('a wildcard is dealt when trust has been static', wild === 1);
+  check('it is the risk card, not the reward',
+    /THE FACILITATOR PLAYS A CARD/.test(await page.textContent('.rr-wildcard')));
+
+  await page.locator('.rr-wildcard .rr-envelope').click();
+  check('the wildcard opens to The Rumour',
+    (await page.textContent('.rr-wildcard')).includes('The Rumour'));
+  check('only one wildcard is ever dealt',
+    (await page.locator('.rr-wildcard .rr-envelope').count()) === 0);
 });
 
 await browser.close();
