@@ -64,11 +64,12 @@ export function scanFields(text) {
   const delta = s.match(/["']?trust[_\s-]?delta["']?\s*:\s*(-?\d+(?:\.\d+)?)/i);
   if (delta) out.trust_delta = Number(delta[1]);
 
-  const pivot = s.match(/["']?pivot["']?\s*:\s*(true|false)/i);
-  if (pivot) out.pivot = pivot[1].toLowerCase() === 'true';
-
-  const reason = s.match(/["']?reason["']?\s*:\s*"((?:[^"\\]|\\.)*)"/i);
-  if (reason) out.reason = unescape(reason[1]);
+  // `pivot` is a short clause naming what the trainee just did — the observer
+  // sheet's "write down the words used just before the client warmed or
+  // cooled". It is a string, not a flag.
+  const pivot = s.match(/["']?pivot["']?\s*:\s*"((?:[^"\\]|\\.)*)"/i)
+    || s.match(/["']?pivot["']?\s*:\s*'((?:[^'\\]|\\.)*)'/i);
+  if (pivot) out.pivot = unescape(pivot[1]);
 
   return Object.keys(out).length ? out : null;
 }
@@ -111,7 +112,6 @@ export function normaliseClientReply(parsed, rawText) {
   return {
     speech,
     trust_delta: Number.isFinite(Number(v.trust_delta)) ? Number(v.trust_delta) : 0,
-    pivot: v.pivot === true,
-    reason: typeof v.reason === 'string' ? v.reason : '',
+    pivot: typeof v.pivot === 'string' ? v.pivot.trim() : '',
   };
 }

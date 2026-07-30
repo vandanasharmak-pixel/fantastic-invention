@@ -15,6 +15,7 @@ import {
 import { parseJSONish, normaliseClientReply, extractFirstObject } from '../src/core/parse.js';
 import { validateSave, emptySave, hasResumableProgress, createPersistence, SCHEMA_VERSION } from '../src/core/storage.js';
 import { CARDS, cardsForEpisode, wildcards, soloEpisodeThreeDraw, cardById } from '../src/content/cards.js';
+import { getSessionContext } from '../src/core/sessionContext.js';
 
 // ---------------------------------------------------------------- trust ----
 
@@ -196,11 +197,11 @@ test('brace extraction ignores braces inside strings', () => {
 
 test('falls back to key scanning when JSON is malformed', () => {
   // Unescaped inner quote breaks JSON.parse entirely.
-  const raw = '{speech: "He said "on track" again.", trust_delta: -7, pivot: true}';
+  const raw = '{speech: "He said "on track" again.", trust_delta: -7, pivot: "reassured without evidence"}';
   const r = parseJSONish(raw);
   assert.equal(r.via, 'scan');
   assert.equal(r.value.trust_delta, -7);
-  assert.equal(r.value.pivot, true);
+  assert.equal(r.value.pivot, 'reassured without evidence');
 });
 
 test('normalise never throws and always yields a playable line', () => {
@@ -209,7 +210,52 @@ test('normalise never throws and always yields a playable line', () => {
   const n = normaliseClientReply(r.value, 'the model ignored the schema completely');
   assert.equal(n.speech, 'the model ignored the schema completely');
   assert.equal(n.trust_delta, 0);
-  assert.equal(n.pivot, false);
+  assert.equal(n.pivot, '', 'pivot is a clause, not a flag');
+});
+
+// ------------------------------------------------------ session context ----
+
+test('session context digests the whole session, not the transcript', () => {
+  let s = createTrustState();
+  s = applyTrustEvent(s, { episode: 2, source: 'reyes', delta: -9, reason: 'reassured without evidence' });
+
+  const ctx = getSessionContext({
+    trust: s.trust,
+    trustEvents: s.events,
+    episode: 4,
+    cardsOpened: [1, 2],
+    worksheets: {
+      ep3: { choice: 'share' },
+      ep4: { decision: 'escalate' },
+      ep5: { nonNeg: 'I will not promise a date I cannot evidence' },
+    },
+  });
+
+  assert.equal(ctx.zone.id, 'GUARDED');
+  assert.equal(ctx.cardsOpened.length, 2);
+  assert.equal(ctx.nonNegotiable, 'I will not promise a date I cannot evidence');
+
+  // The brief must carry the decisions forward without the raw transcript.
+  assert.match(ctx.brief, /GUARDED/);
+  assert.match(ctx.brief, /The Real Reason/);
+  assert.match(ctx.brief, /escalated to Priya/);
+  assert.match(ctx.brief, /reassured without evidence/);
+  assert.ok(ctx.brief.length < 2000, 'brief stays condensed, not a transcript');
+});
+
+test('session context is honest when nothing has been discovered', () => {
+  const ctx = getSessionContext({ trust: TRUST_START, trustEvents: [], episode: 1, cardsOpened: [] });
+  assert.match(ctx.brief, /has not yet discovered any of the hidden truths/);
+  assert.equal(ctx.nonNegotiable, null);
+});
+
+test('a reassurance scored positive by a drifting persona is clamped, not trusted', () => {
+  // The persona-consistency guard: the schema asks for -1..-14 on reassurance,
+  // but a drifting model returning +30 cannot hand the room a happy ending.
+  let s = createTrustState();
+  s = applyTrustEvent(s, { episode: 2, source: 'reyes', delta: 30, reason: 'reassured without evidence' });
+  assert.equal(s.events[0].delta, 6, 'rises cap at +6 however the model scored it');
+  assert.ok(s.trust <= TRUST_START + 6);
 });
 
 // ---------------------------------------------------------- persistence ----

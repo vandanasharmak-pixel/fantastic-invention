@@ -61,7 +61,13 @@ export function clampDelta(delta) {
 }
 
 let seq = 0;
-const nextId = () => `te_${Date.now().toString(36)}_${(seq++).toString(36)}`;
+/**
+ * Mint an event id. Exported because React state updaters run during render,
+ * not at call time — a caller that needs the id (to thread `replayOf` through)
+ * must mint it *before* dispatching, not read it back out of the updater.
+ */
+export const nextTrustEventId = () => `te_${Date.now().toString(36)}_${(seq++).toString(36)}`;
+const nextId = nextTrustEventId;
 
 /**
  * Recompute every snapshot in the log from scratch.
@@ -97,9 +103,9 @@ export function createTrustState() {
  * narrative nudges ("three days of silence"), and replays all come through
  * here, so there is one place to reason about and one place to test.
  */
-export function applyTrustEvent(state, { episode, source, delta, reason, replayOf = null }) {
+export function applyTrustEvent(state, { episode, source, delta, reason, replayOf = null, id = null }) {
   const event = {
-    id: nextId(),
+    id: id ?? nextId(),
     episode,
     source,
     delta: clampDelta(delta),
