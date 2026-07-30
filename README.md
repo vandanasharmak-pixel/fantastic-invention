@@ -27,10 +27,35 @@ scripts/trace-trust.js      Hand-traceable trust ledger
 ```
 
 ```sh
+npm run build   # → relationship-room.html, one self-contained file
 npm test        # 44 unit tests
 npm run trace   # walk an Episode Two hold/replay by hand
 npm run verify  # drive the real app in a real browser — 57 checks
+npm run verify:standalone   # build it, then play it straight off disk
 ```
+
+## The downloadable build
+
+`npm run build` produces **`relationship-room.html`** — 290 KB, everything
+inlined, no server and no build step at the other end. Double-click it.
+
+On open it asks how it should talk to a client:
+
+- **With your own Anthropic API key.** Reyes and Priya are played by Claude and
+  react to what you actually say. The key goes from the page straight to
+  `api.anthropic.com` and nowhere else; it is held in `localStorage` if you ask
+  it to be. A key in a browser page is readable by anything on that page, so
+  the gate says so plainly and suggests a revocable key — and don't host this
+  file somewhere other people load it.
+- **Rehearsal, with no key at all.** The same five episodes, meter, Hold and
+  Replay, with the client following Deliverable Five's branch table instead of
+  improvising. Nothing leaves the machine. `offlineClient.js` is shared with the
+  test harness, so the two can't drift apart.
+
+`npm run verify:standalone` opens the built file from a real `file://` origin
+and plays the rehearsal through Hold and Replay — including a check that
+`localStorage` is actually available there, since a `file://` origin is exactly
+where it might not be.
 
 `npm run verify` bundles `dev/harness.jsx` (which stubs the Messages API with
 guide-faithful canned replies) and drives the app headless: it plays a

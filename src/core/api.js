@@ -11,6 +11,7 @@
 
 import { parseJSONish, normaliseClientReply } from './parse.js';
 import { repairClientReply, recordRepair } from './consistency.js';
+import { offlineClientReply, offlineCoachReply } from '../content/offlineClient.js';
 
 export const MODEL = 'claude-opus-5';
 const ENDPOINT = 'https://api.anthropic.com/v1/messages';
@@ -50,6 +51,24 @@ export const CLIENT_REPLY_SCHEMA = {
   additionalProperties: false,
 };
 
+/**
+ * Runtime configuration.
+ *
+ * Inside Claude Design the host proxies /v1/messages, so no key is needed and
+ * none is sent. A standalone copy opened from disk has no proxy, so the person
+ * supplies their own key and the request carries it directly — which the API
+ * requires an explicit opt-in header for, because a key in a browser is
+ * readable by anything running on that page. Rehearsal mode uses neither.
+ */
+const config = { apiKey: null, mode: 'proxy' }; // 'proxy' | 'direct' | 'rehearsal'
+
+export function configureApi({ apiKey = null, mode = 'proxy' } = {}) {
+  config.apiKey = apiKey;
+  config.mode = mode;
+}
+
+export const apiMode = () => config.mode;
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const isTransient = (status) => status === 408 || status === 429 || status >= 500;
@@ -67,11 +86,16 @@ async function once(system, userText, { schema, signal }) {
       : { effort: EFFORT },
   };
 
+  const headers = { 'Content-Type': 'application/json' };
+  if (config.mode === 'direct' && config.apiKey) {
+    headers['x-api-key'] = config.apiKey;
+    headers['anthropic-version'] = '2023-06-01';
+    // Required for a request made from page context rather than a server.
+    headers['anthropic-dangerous-direct-browser-access'] = 'true';
+  }
+
   const res = await fetch(ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal,
+    method: 'POST', headers, body: JSON.stringify(body), signal,
   });
 
   if (!res.ok) {
@@ -151,6 +175,13 @@ export function inFictionFallback(persona = 'reyes') {
  */
 export async function askClient(persona, system, userText, opts = {}) {
   const { traineeText = '', ...rest } = opts;
+
+  if (config.mode === 'rehearsal') {
+    await sleep(500); // the client takes a beat, as they would
+    const scripted = offlineClientReply(persona, traineeText);
+    return { ...scripted, degraded: false, rehearsal: true };
+  }
+
   const { ok, text, aborted } = await callClaude(system, userText, {
     schema: CLIENT_REPLY_SCHEMA,
     ...rest,
@@ -179,6 +210,10 @@ export async function askClient(persona, system, userText, opts = {}) {
 
 /** Facilitator/coach prose — no schema, plain text is the deliverable. */
 export async function askCoach(system, userText, opts = {}) {
+  if (config.mode === 'rehearsal') {
+    await sleep(400);
+    return offlineCoachReply(opts.mode);
+  }
   const { ok, text } = await callClaude(system, userText, opts);
   return ok ? text : inFictionFallback('coach');
 }

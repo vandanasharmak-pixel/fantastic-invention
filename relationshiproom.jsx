@@ -241,6 +241,7 @@ function ClientChat({ persona, episode, state, dispatch, minTurns = 2, onDone })
     const note = await askCoach(
       coachSystem("replay", getSessionContext(state)),
       `The trainee said: "${lastUser.text}"\nThe client replied: "${lastClient.text}"\nWhat the client registered: ${lastClient.pivot || "no clear pivot"}`,
+      { mode: "replay" },
     );
     setMachine((m) => coachReady(m, note));
   }
@@ -447,6 +448,7 @@ function EpisodeOne({ state, dispatch, onDone }) {
     const note = await askCoach(
       coachSystem("fact_story", getSessionContext(state)),
       `Reyes's email said: "I don't have a clear picture of where we actually are... that worries me... 'on track' without evidence doesn't settle me anymore."\n\nTrainee's FACT column:\n${facts}\n\nTrainee's STORY column:\n${stories}`,
+      { mode: "fact_story" },
     );
     dispatch({ type: "worksheet", key: "ep1", value: { facts, stories, feedback: note } });
     dispatch({
@@ -506,6 +508,7 @@ function EpisodeThree({ state, dispatch, onDone }) {
     const note = await askCoach(
       coachSystem("cards", getSessionContext(state)),
       `What the trainee says they got wrong: ${gotWrong}\nTheir choice: they decided to ${choice} this information with the client.`,
+      { mode: "cards" },
     );
     dispatch({ type: "worksheet", key: "ep3", value: { gotWrong, choice, feedback: note } });
     dispatch({
@@ -717,6 +720,7 @@ function Debrief({ state, dispatch }) {
       const note = await askCoach(
         coachSystem("debrief", getSessionContext(state)),
         `Trust log (chronological):\n${log}\n\nTheir own written work:\n${sheets}\n\nWhere the account ends: ${zone.label} — ${zone.caption}.`,
+        { mode: "debrief" },
       );
       if (!live) return;
       dispatch({ type: "debrief", value: note });

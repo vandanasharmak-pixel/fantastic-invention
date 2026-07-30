@@ -8,7 +8,9 @@
     "test": "node --test 'test/*.test.js'",
     "trace": "node scripts/trace-trust.js",
     "build:harness": "esbuild dev/harness.jsx --bundle --outfile=dev/bundle.js --loader:.jsx=jsx --jsx=automatic --format=iife --log-level=warning",
-    "verify": "npm run build:harness && node dev/walkthrough.mjs"
+    "verify": "npm run build:harness && node dev/walkthrough.mjs",
+    "build": "node scripts/build-standalone.mjs",
+    "verify:standalone": "npm run build && node dev/check-standalone.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",
